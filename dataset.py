@@ -6,27 +6,11 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 
-def one_hot_encoding(pathology):
-    """
-
-    :param pathology: String, name of the pathology
-    :return: function one hot that returns 1 if the row is labeled with pathology
-    """
-
-    def one_hot(row):
-        if pathology in row['Finding Labels']:
-            return 1
-        return 0
-
-    return one_hot
-
-
 class XrayDataset(Dataset):
 
     def __init__(self, datadir, csvpath, transform=None):
 
         self.datadir = datadir
-        self.csvpath = csvpath
         self.transform = transform
         self.pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                             "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
@@ -34,10 +18,6 @@ class XrayDataset(Dataset):
 
         # Load data
         self.Data = pd.read_csv(csvpath)
-
-        # Add one hot encodings
-        for pathology in self.pathologies:
-            self.Data[pathology] = self.Data.apply(one_hot_encoding(pathology), axis=1)
 
     def __len__(self):
         return len(self.Data)
@@ -48,6 +28,8 @@ class XrayDataset(Dataset):
         # Check that images are 2D arrays
         if len(im.shape) > 2:
             im = im[:, :, 0]
+        if len(im.shape) < 2:
+            print("error, dimension lower than 2 for image", self.Data['Image Index'][idx])
 
         # Add color channel
         im = im[:, :, None]
@@ -59,7 +41,7 @@ class XrayDataset(Dataset):
         return im, self.Data[self.pathologies].loc[idx].values
 
 
-def MyDataLoader(datadir, csvpath, inputsize):
+def MyDataLoader(datadir, csvpath, inputsize, batch_size=16):
     # Transformations
     data_transforms = transforms.Compose([
         transforms.ToPILImage(),
@@ -70,19 +52,19 @@ def MyDataLoader(datadir, csvpath, inputsize):
 
     # Initialize dataloader
     dataset = XrayDataset(datadir, csvpath, transform=data_transforms)
-    dataloader = DataLoader(dataset, shuffle=True, batch_size=16)
+    dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
     return dataloader
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
 
     ####################################################################################################################
     # Test
     ####################################################################################################################
 
     datadir = "/home/user1/Documents/Data/ChestXray/images"
-    csvpath = "/home/user1/Documents/Data/ChestXray/Data_Entry_2017.csv"
+    csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
     inputsize = [224, 224]
 
     # Transformations
