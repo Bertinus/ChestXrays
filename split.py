@@ -26,9 +26,17 @@ if __name__=="__main__":
     # %% Build Train Test Val Datasets
     ####################################################################################################################
 
+    # Local
     testListPath = "/home/user1/Documents/Data/ChestXray/Utils/test_list.txt"
     csvpath = "/home/user1/Documents/Data/ChestXray/Data_Entry_2017.csv"
     savepath = "/home/user1/Documents/Data/ChestXray"
+
+    """
+    # Server
+    testListPath = "/u/bertinpa/Documents/ChestXrays/test_list.txt"
+    csvpath = "/data/lisa/data/ChestXray-NIHCC-2/Data_Entry_2017.csv"
+    savepath = "/u/bertinpa/Documents/ChestXrays/Data"
+    """
 
 
     # Load data

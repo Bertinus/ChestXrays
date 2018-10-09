@@ -37,15 +37,27 @@ if __name__=="__main__":
     # Parameters
     ####################################################################################################################
 
-    # Dataloader
+    # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
 
-    # Writer
+    # Local Writer
     savemodeldir = "/home/user1/PycharmProjects/ChestXrays/Logs/model_1"
     logdir = "/home/user1/PycharmProjects/ChestXrays/Logs/training_1"
     print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
+
+    """
+    # Server Dataloader
+    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
+    train_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
+    val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
+
+    # Server Writer
+    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_1"
+    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_1"
+    print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
+    """
 
     # Image Size fed to the network
     inputsize = [224, 224]
@@ -55,8 +67,8 @@ if __name__=="__main__":
 
     # Training
     num_epochs = 100
-    val_every_n_iter = 1
-    batch_per_val_session = 2
+    val_every_n_iter = 200
+    batch_per_val_session = 10
 
     ####################################################################################################################
     # Initialization
@@ -114,6 +126,7 @@ if __name__=="__main__":
 
                     n_val +=1
                     if n_val == batch_per_val_session:
+                        test_loss /= batch_per_val_session
                         break
 
                 writer.add_scalar('Test_Loss', test_loss, num_iteration)
