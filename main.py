@@ -21,10 +21,7 @@ def initWriter(savemodeldir, logdir):
         os.makedirs(logdir)
     else:
         if os.listdir(logdir):
-            ans = input("Empty log directory " + str(logdir) + "? (Y/N)")
-            if ans == "y" or ans == "Y":
-                shutil.rmtree(logdir)
-                print("empty directory !")
+            print("You have to empty " + logdir)
 
     writer = SummaryWriter(logdir)
 
@@ -36,7 +33,7 @@ if __name__=="__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-
+    """
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -46,8 +43,8 @@ if __name__=="__main__":
     savemodeldir = "/home/user1/PycharmProjects/ChestXrays/Logs/model_1"
     logdir = "/home/user1/PycharmProjects/ChestXrays/Logs/training_1"
     print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
-
     """
+
     # Server Dataloader
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     train_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
@@ -57,7 +54,6 @@ if __name__=="__main__":
     savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_1"
     logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_1"
     print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
-    """
 
     # Image Size fed to the network
     inputsize = [224, 224]
