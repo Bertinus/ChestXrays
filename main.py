@@ -27,6 +27,24 @@ def initWriter(savemodeldir, logdir):
     return writer
 
 
+class Iterator:
+    """
+    iterator over dataloader which automatically resets when all samples have been seen
+    """
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+        self.cpt = 0
+        self.len = len(self.dataloader)
+        self.iterator = iter(self.dataloader)
+
+    def next(self):
+        if self.cpt == self.len:
+            self.cpt = 0
+            self.iterator = iter(self.dataloader)
+        self.cpt += 1
+        return self.iterator.next()
+
+
 if __name__=="__main__":
 
     ####################################################################################################################
@@ -95,6 +113,7 @@ if __name__=="__main__":
     print("Training...")
 
     num_iteration = 0  # Number of iterations
+    val_iterator = Iterator(val_dataloader)  # Iterator for validation samples
 
     for epoch in range(num_epochs):
         # Training
@@ -119,12 +138,13 @@ if __name__=="__main__":
 
             # Validation
             if num_iteration % val_every_n_iter == 0:
-                n_val = 0
                 test_loss = torch.tensor(0., requires_grad=False)
                 if torch.cuda.is_available():
                     test_loss = test_loss.cuda()
 
-                for data, label in val_dataloader:
+                for _ in range(batch_per_val_session):
+
+                    data, label = val_iterator.next()
 
                     if torch.cuda.is_available():
                         data = data.cuda()
@@ -133,10 +153,8 @@ if __name__=="__main__":
                     output = densenet(data)
                     test_loss += criterion(output, label).data
 
-                    n_val +=1
-                    if n_val == batch_per_val_session:
-                        test_loss /= batch_per_val_session
-                        break
+                test_loss /= batch_per_val_session
+                print("test", num_iteration, ":", test_loss.data.numpy())
 
                 writer.add_scalar('Test_Loss', test_loss, num_iteration)
 
