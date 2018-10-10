@@ -120,9 +120,16 @@ if __name__=="__main__":
             # Validation
             if num_iteration % val_every_n_iter == 0:
                 n_val = 0
-                test_loss = 0.
+                test_loss = torch.tensor(0., requires_grad=False)
+                if torch.cuda.is_available():
+                    test_loss = test_loss.cuda()
 
                 for data, label in val_dataloader:
+
+                    if torch.cuda.is_available():
+                        data = data.cuda()
+                        label = label.cuda()
+
                     output = densenet(data)
                     test_loss += criterion(output, label).data
 

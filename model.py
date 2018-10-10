@@ -13,7 +13,7 @@ def averageCrossEntropy(output, label):
     loss = torch.tensor(0.)
     if torch.cuda.is_available():
         loss = loss.cuda()
-        
+
     crossEntropy = nn.CrossEntropyLoss()
     for i in range(output.size()[1]):
         loss += crossEntropy(torch.cat((1-output[:, i:i+1], output[:, i:i+1]), 1), label[:, i])
