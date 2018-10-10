@@ -1,7 +1,6 @@
 from dataset import MyDataLoader
 import torch
 import os
-import shutil
 from torch.optim import Adam
 from model import myDenseNet, averageCrossEntropy
 from tensorboardX import SummaryWriter
@@ -42,7 +41,6 @@ if __name__=="__main__":
     # Local Writer
     savemodeldir = "/home/user1/PycharmProjects/ChestXrays/Logs/model_1"
     logdir = "/home/user1/PycharmProjects/ChestXrays/Logs/training_1"
-    print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
     """
 
     # Server Dataloader
@@ -53,7 +51,6 @@ if __name__=="__main__":
     # Server Writer
     savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_1"
     logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_1"
-    print("\ntensorboard --logdir=" + logdir + " --port=6006\n")
 
     # Image Size fed to the network
     inputsize = [224, 224]
@@ -70,14 +67,17 @@ if __name__=="__main__":
     # Initialization
     ####################################################################################################################
 
+    print("Initializing...")
+
     # Dataloaders
     train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16)
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=16)
 
     # Model
-    densenet = myDenseNet()
     if torch.cuda.is_available():
-        model = densenet().cuda()
+        densenet = myDenseNet().cuda()
+    else:
+        densenet = myDenseNet()
 
     # Writer
     writer = initWriter(savemodeldir, logdir)
@@ -92,11 +92,17 @@ if __name__=="__main__":
     # Training
     ####################################################################################################################
 
+    print("Training...")
+
     num_iteration = 0  # Number of iterations
 
     for epoch in range(num_epochs):
         # Training
         for data, label in train_dataloader:
+
+            if torch.cuda.is_available():
+                data = data.cuda()
+                label = label.cuda()
 
             # Forward
             output = densenet(data)
