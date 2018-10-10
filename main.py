@@ -154,7 +154,7 @@ if __name__=="__main__":
                     test_loss += criterion(output, label).data
 
                 test_loss /= batch_per_val_session
-                print("test", num_iteration, ":", test_loss.data.numpy())
+                print("test", num_iteration, ":", test_loss)
 
                 writer.add_scalar('Test_Loss', test_loss, num_iteration)
 
