@@ -14,6 +14,7 @@
 - [Density estimation using real NVP](https://arxiv.org/pdf/1605.08803.pdf)
 - [Adversarially Learned Inference (ALI)](https://arxiv.org/pdf/1606.00704.pdf)
 - [Adversarial Feature Learning](https://arxiv.org/pdf/1605.09782.pdf)
+- [Unsupervised Anomaly Detection with Generative Adversarial Networks to Guide Marker Discovery] (https://arxiv.org/pdf/1703.05921.pdf)
 
 ### Uncertainty
 
