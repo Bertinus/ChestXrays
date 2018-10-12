@@ -57,6 +57,24 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16):
     return dataloader
 
 
+class Iterator:
+    """
+    iterator over dataloader which automatically resets when all samples have been seen
+    """
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+        self.cpt = 0
+        self.len = len(self.dataloader)
+        self.iterator = iter(self.dataloader)
+
+    def next(self):
+        if self.cpt == self.len:
+            self.cpt = 0
+            self.iterator = iter(self.dataloader)
+        self.cpt += 1
+        return self.iterator.next()
+
+
 if __name__ == '__main__':
 
     ####################################################################################################################
