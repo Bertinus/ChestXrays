@@ -1,4 +1,4 @@
-from dataset import MyDataLoader
+from dataset import MyDataLoader, Iterator
 import torch
 import os
 from torch.optim import Adam
@@ -27,22 +27,31 @@ def initWriter(savemodeldir, logdir):
     return writer
 
 
-class Iterator:
+def writeImages(writer, activations):
     """
-    iterator over dataloader which automatically resets when all samples have been seen
+    Write activations as images in tensorboard
     """
-    def __init__(self, dataloader):
-        self.dataloader = dataloader
-        self.cpt = 0
-        self.len = len(self.dataloader)
-        self.iterator = iter(self.dataloader)
 
-    def next(self):
-        if self.cpt == self.len:
-            self.cpt = 0
-            self.iterator = iter(self.dataloader)
-        self.cpt += 1
-        return self.iterator.next()
+    writer.add_image('Activations/Activation_' + str(9), activations[9][0, 3:6, :, :], num_iteration)
+    writer.add_image('Activations/Activation_' + str(11), activations[11][0, 3:6, :, :], num_iteration)
+    writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
+    writer.add_image('Activations/BatchOutput', activations[13][None, :, :], num_iteration)
+    writer.add_image('Activations/Labels', label, num_iteration)
+
+    writer.add_image('Weights/denseblock4.denselayer16.conv2',
+                     densenet.features.denseblock4.denselayer16.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     num_iteration)
+    writer.add_image('Weights/denseblock3.denselayer24.conv2',
+                     densenet.features.denseblock3.denselayer24.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     num_iteration)
+    writer.add_image('Weights/denseblock2.denselayer12.conv2',
+                     densenet.features.denseblock2.denselayer12.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     num_iteration)
+    writer.add_image('Weights/denseblock1.denselayer6.conv2',
+                     densenet.features.denseblock1.denselayer6.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     num_iteration)
+
+    # writer.add_embedding(activations[12], global_step=num_iteration)
 
 
 if __name__ == "__main__":
@@ -50,7 +59,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-    """
+    """"
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -59,6 +68,7 @@ if __name__ == "__main__":
     # Local Writer
     savemodeldir = "/home/user1/PycharmProjects/ChestXrays/Logs/model_1"
     logdir = "/home/user1/PycharmProjects/ChestXrays/Logs/training_1"
+    print("\ntensorboard --logdir=" + logdir + " --port=11995\n")
     """
 
     # Server Dataloader
@@ -80,6 +90,7 @@ if __name__ == "__main__":
     num_epochs = 100
     val_every_n_iter = 200
     batch_per_val_session = 10
+    add_graph = 1
 
     ####################################################################################################################
     # Initialization
@@ -123,8 +134,13 @@ if __name__ == "__main__":
                 data = data.cuda()
                 label = label.cuda()
 
+            # Add graph to tensorboard
+            if add_graph == 1:
+                add_graph = 0
+                writer.add_graph(densenet, data)
+
             # Forward
-            output = densenet(data)
+            output = densenet(data)[-1]
             optimizer.zero_grad()
             loss = criterion(output, label)
 
@@ -138,7 +154,11 @@ if __name__ == "__main__":
 
             # Validation
             if num_iteration % val_every_n_iter == 0:
+
+                writeImages(writer, activations=densenet(data))
+
                 test_loss = torch.tensor(0., requires_grad=False)
+
                 if torch.cuda.is_available():
                     test_loss = test_loss.cuda()
 
@@ -150,7 +170,7 @@ if __name__ == "__main__":
                         data = data.cuda()
                         label = label.cuda()
 
-                    output = densenet(data)
+                    output = densenet(data)[-1]
                     test_loss += criterion(output, label).data
 
                 test_loss /= batch_per_val_session
