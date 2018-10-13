@@ -4,6 +4,7 @@ from scipy import misc
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
+import numpy as np
 
 
 class XrayDataset(Dataset):
@@ -38,7 +39,7 @@ class XrayDataset(Dataset):
         if self.transform:
             im = self.transform(im)
 
-        return im, self.Data[self.pathologies].loc[idx].values
+        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32)
 
 
 def MyDataLoader(datadir, csvpath, inputsize, batch_size=16):

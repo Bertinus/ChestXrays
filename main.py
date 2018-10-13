@@ -36,7 +36,7 @@ def writeImages(writer, activations):
     writer.add_image('Activations/Activation_' + str(11), activations[11][0, 3:6, :, :], num_iteration)
     writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
     writer.add_image('Activations/BatchOutput', activations[13][None, :, :], num_iteration)
-    writer.add_image('Activations/Labels', label, num_iteration)
+    writer.add_image('Activations/BatchLabels', label, num_iteration)
 
     writer.add_image('Weights/denseblock4.denselayer16.conv2',
                      densenet.features.denseblock4.denselayer16.conv2.weight[:16, :16, :, 0].transpose(0, 2),
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-    """"
+    """
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
                 writeImages(writer, activations=densenet(data))
 
-                test_loss = torch.tensor(0., requires_grad=False)
+                test_loss = torch.zeros(1, requires_grad=False)
 
                 if torch.cuda.is_available():
                     test_loss = test_loss.cuda()
@@ -181,5 +181,3 @@ if __name__ == "__main__":
                 # Save model
                 torch.save(densenet.state_dict(),
                            os.path.join(savemodeldir, 'model_' + str(num_iteration) + '.pth'))
-                    
-

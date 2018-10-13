@@ -12,13 +12,13 @@ def averageCrossEntropy(output, label):
     :param label: Tensor of shape batchSize x Nclasses
     :return: Sum of the per class entropies
     """
-    loss = torch.tensor(0.)
+    loss = torch.zeros(1, requires_grad=False)
     if torch.cuda.is_available():
         loss = loss.cuda()
 
-    crossEntropy = nn.CrossEntropyLoss()
+    crossEntropy = F.binary_cross_entropy
     for i in range(output.size()[1]):
-        loss += crossEntropy(torch.cat((1-output[:, i:i+1], output[:, i:i+1]), 1), label[:, i])
+        loss += crossEntropy(output[:, i], label[:, i])
 
     return loss
 
@@ -50,7 +50,7 @@ class myDenseNet(nn.Module):
 if __name__ == "__main__":
 
     ####################################################################################################################
-    # Test
+    # Test model
     ####################################################################################################################
 
     print([method_name for method_name in dir(models.densenet121(pretrained=True))])
@@ -81,10 +81,39 @@ if __name__ == "__main__":
     # for image in activations:
     #     print(image.size())
 
-    for name, param in mydensenet.named_parameters():
-        print(name)
+    # for name, param in mydensenet.named_parameters():
+    #     print(name)
+    #
+    # print(mydensenet.features.denseblock4.denselayer16.conv2.weight.size())
+    # print(mydensenet.features.denseblock3.denselayer24.conv2.weight.size())
+    # print(mydensenet.features.denseblock2.denselayer12.conv2.weight.size())
+    # print(mydensenet.features.denseblock1.denselayer6.conv2.weight.size())
 
-    print(mydensenet.features.denseblock4.denselayer16.conv2.weight.size())
-    print(mydensenet.features.denseblock3.denselayer24.conv2.weight.size())
-    print(mydensenet.features.denseblock2.denselayer12.conv2.weight.size())
-    print(mydensenet.features.denseblock1.denselayer6.conv2.weight.size())
+    ####################################################################################################################
+    # Test loss function
+    ####################################################################################################################
+
+    loss = F.binary_cross_entropy
+    input = torch.zeros(3, 5)
+    input[1] = 1
+    target = torch.zeros(3, 5)# .random_(5)
+    output = loss(input, target)
+    #
+    # print(input)
+    # print(target)
+    # print(output)
+    #
+    # print("type", label.dtype)
+    # print("label", label)
+    output = mydensenet(data)[-1]
+
+    loss = torch.zeros(1, requires_grad=False)
+
+    crossEntropy = F.binary_cross_entropy
+    for i in range(output.size()[1]):
+        loss += crossEntropy(label[:, i], label[:, i])
+
+    print(loss)
+
+    print(averageCrossEntropy(mydensenet(data)[-1], label))
+    print(averageCrossEntropy(label, label))
