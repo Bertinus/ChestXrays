@@ -77,8 +77,8 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_1"
-    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_1"
+    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_2"
+    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_2"
 
     # Image Size fed to the network
     inputsize = [224, 224]
