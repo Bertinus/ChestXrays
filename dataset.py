@@ -9,7 +9,7 @@ import numpy as np
 
 class XrayDataset(Dataset):
 
-    def __init__(self, datadir, csvpath, transform=None):
+    def __init__(self, datadir, csvpath, transform=None, nrows=None):
 
         self.datadir = datadir
         self.transform = transform
@@ -18,7 +18,7 @@ class XrayDataset(Dataset):
                             "Pleural_thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
         # Load data
-        self.Data = pd.read_csv(csvpath)
+        self.Data = pd.read_csv(csvpath, nrows=nrows)
 
     def __len__(self):
         return len(self.Data)
@@ -42,7 +42,7 @@ class XrayDataset(Dataset):
         return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32)
 
 
-def MyDataLoader(datadir, csvpath, inputsize, batch_size=16):
+def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None):
     # Transformations
     data_transforms = transforms.Compose([
         transforms.ToPILImage(),
@@ -52,7 +52,7 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16):
     ])
 
     # Initialize dataloader
-    dataset = XrayDataset(datadir, csvpath, transform=data_transforms)
+    dataset = XrayDataset(datadir, csvpath, transform=data_transforms, nrows=nrows)
     dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
     return dataloader
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     ])
 
     # Initialize dataloader
-    dataset = XrayDataset(datadir, csvpath, transform=data_transforms)
+    dataset = XrayDataset(datadir, csvpath, transform=data_transforms, nrows=100)
     dataloader = DataLoader(dataset, shuffle=True, batch_size=16)
 
     print(len(dataset))

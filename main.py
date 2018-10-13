@@ -83,6 +83,9 @@ if __name__ == "__main__":
     # Image Size fed to the network
     inputsize = [224, 224]
 
+    # Number of images in the train dataset
+    nrows = 256
+
     # Optimizer
     learning_rate = 0.001
 
@@ -99,7 +102,7 @@ if __name__ == "__main__":
     print("Initializing...")
 
     # Dataloaders
-    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16)
+    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16, nrows=nrows)
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=16)
 
     # Model
