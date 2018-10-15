@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # Compute predictions
     ####################################################################################################################
 
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True)
 
     if n_batch == -1:
         n_batch = len(val_dataloader)

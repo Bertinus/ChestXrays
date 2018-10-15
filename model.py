@@ -96,7 +96,7 @@ if __name__ == "__main__":
     loss = F.binary_cross_entropy
     input = torch.zeros(3, 5)
     input[1] = 1
-    target = torch.zeros(3, 5)# .random_(5)
+    target = torch.zeros(3, 5)  # .random_(5)
     output = loss(input, target)
     #
     # print(input)
