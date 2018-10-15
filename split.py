@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     """
     # Server
-    testListPath = "/u/bertinpa/Documents/ChestXrays/test_list.txt"
+    testListPath = "/u/bertinpa/Documents/ChestXrays/Data/test_list.txt"
     csvpath = "/data/lisa/data/ChestXray-NIHCC-2/Data_Entry_2017.csv"
     savepath = "/u/bertinpa/Documents/ChestXrays/Data"
 
