@@ -65,8 +65,12 @@ if __name__ == "__main__":
 
         output = densenet(data)[-1]
 
-        all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().numpy()
-        all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
+        if torch.cuda.is_available():
+            all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().cpu().numpy()
+            all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().cpu().numpy()
+        else:
+            all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().numpy()
+            all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
 
         cpt += 1
         if cpt == n_batch:
