@@ -15,7 +15,7 @@ class XrayDataset(Dataset):
         self.transform = transform
         self.pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                             "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
-                            "Pleural_thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
+                            "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
         # Load data
         self.Data = pd.read_csv(csvpath, nrows=nrows)

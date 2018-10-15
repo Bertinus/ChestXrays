@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                    "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
-                   "Pleural_thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
+                   "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
     """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"

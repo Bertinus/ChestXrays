@@ -64,6 +64,27 @@ if __name__ == "__main__":
     mydensenet = myDenseNet()
     origdensenet = models.densenet121(pretrained=True)
 
+    for mod1 in mydensenet.features.children():
+        if isinstance(mod1, nn.modules.conv.Conv2d):
+            print("mod1", mod1)
+        elif isinstance(mod1, nn.modules.BatchNorm2d):
+            print("mod1", mod1)
+        elif isinstance(mod1, nn.modules.ReLU):
+            print("mod1", mod1)
+        elif isinstance(mod1, nn.modules.MaxPool2d):
+            print("mod1", mod1)
+        else:
+            for mod2 in mod1.children():
+        #     if isinstance(mod2, nn.modules.conv.Conv2d):
+                print(mod2)
+        #         for mod3 in mod2.children():
+        #             if isinstance(mod3, nn.modules.conv.Conv2d):
+        #                 print(mod3)
+
+    quit()
+
+
+
     # print(type(densenet.classifier[0]), type(densenet.classifier[1]))
     #
     for name, param in mydensenet.named_parameters():

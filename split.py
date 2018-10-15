@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # %% Build Train Test Val Datasets
     ####################################################################################################################
-
+    """
     # Local
     testListPath = "/home/user1/Documents/Data/ChestXray/Utils/test_list.txt"
     csvpath = "/home/user1/Documents/Data/ChestXray/Data_Entry_2017.csv"
@@ -36,27 +36,22 @@ if __name__ == "__main__":
     testListPath = "/u/bertinpa/Documents/ChestXrays/test_list.txt"
     csvpath = "/data/lisa/data/ChestXray-NIHCC-2/Data_Entry_2017.csv"
     savepath = "/u/bertinpa/Documents/ChestXrays/Data"
-    """
-
 
     # Load data
     Data = pd.read_csv(csvpath)
     testList = pd.read_csv(testListPath, header=None)[0].tolist()
 
-
     # Add one hot encodings
     pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                         "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
-                        "Pleural_thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
+                        "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
     for pathology in pathologies:
         Data[pathology] = Data.apply(one_hot_encoding(pathology), axis=1)
-
 
     # Split Test vs TrainVal using the same splitting as the authors of the Dataset
     DataTest = Data.loc[Data["Image Index"].isin(testList)]
     DataTrainVal = Data.loc[~Data["Image Index"].isin(testList)]
     DataTrainVal.reset_index(inplace=True)
-
 
     # Split Train vs Validation on patient level
     patients = DataTrainVal['Patient ID'].unique().tolist()
