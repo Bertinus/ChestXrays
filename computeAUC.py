@@ -15,26 +15,23 @@ if __name__ == "__main__":
     pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                    "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
                    "Pleural_thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
-
+    """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_51000.pth"
-    saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_51000"
+    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_39000.pth"
+    saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_39000"
 
     """
     # Server
-    datadir = 
-    val_csvpath = 
-    saved_model_path =
-    saveplotdir = 
-    """
+    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
+    val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
+    saved_model_path = "/u/bertinpa/Documents/ChestXrays/Logs/model_1/model_39000.pth"
+    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_39000"
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
-    n_batch = 100  # Number of batches used to compute the AUC
-    all_outputs = np.zeros((n_batch * batch_size, 14))
-    all_labels = np.zeros((n_batch * batch_size, 14))
+    n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
 
     ####################################################################################################################
     # Compute predictions
@@ -42,15 +39,23 @@ if __name__ == "__main__":
 
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size)
 
+    if n_batch == -1:
+        n_batch = len(val_dataloader)
+
+    # Initialize result arrays
+    all_outputs = np.zeros((n_batch * batch_size, 14))
+    all_labels = np.zeros((n_batch * batch_size, 14))
+
     # Model
     if torch.cuda.is_available():
         densenet = myDenseNet().cuda()
+        densenet.load_state_dict(torch.load(saved_model_path))
     else:
         densenet = myDenseNet()
-
-    densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
 
     cpt = 0
+    densenet.eval()
 
     for data, label in val_dataloader:
 
@@ -58,7 +63,7 @@ if __name__ == "__main__":
             data = data.cuda()
             label = label.cuda()
 
-        output = densenet(data)
+        output = densenet(data)[-1]
 
         all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().numpy()
         all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().numpy()

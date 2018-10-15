@@ -66,8 +66,8 @@ if __name__ == "__main__":
 
     # print(type(densenet.classifier[0]), type(densenet.classifier[1]))
     #
-    # for name, param in densenet.named_parameters():
-    #     print(name, param.requires_grad)
+    for name, param in mydensenet.named_parameters():
+        print(name, param.requires_grad)
 
     dataloader_iterator = Iterator(MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16))
 
