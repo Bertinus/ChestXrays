@@ -47,7 +47,7 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_la
     data_transforms = transforms.Compose([
         transforms.ToPILImage(),
         transforms.RandomHorizontalFlip(),
-        # transforms.RandomVerticalFlip(),
+        transforms.RandomVerticalFlip(),
         transforms.Resize(inputsize),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.repeat(3, 1, 1))

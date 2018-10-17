@@ -2,7 +2,7 @@ from dataset import MyDataLoader, Iterator
 import torch
 import os
 from torch.optim import Adam
-from model import myDenseNet, averageCrossEntropy
+from model import myDenseNet, averageCrossEntropy, addDropout
 from tensorboardX import SummaryWriter
 
 
@@ -39,16 +39,16 @@ def writeImages(writer, activations):
     writer.add_image('Activations/BatchLabels', label, num_iteration)
 
     writer.add_image('Weights/denseblock4.denselayer16.conv2',
-                     densenet.features.denseblock4.denselayer16.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     densenet.features.denseblock4.denselayer16.conv2[0].weight[:16, :16, :, 0].transpose(0, 2),
                      num_iteration)
     writer.add_image('Weights/denseblock3.denselayer24.conv2',
-                     densenet.features.denseblock3.denselayer24.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     densenet.features.denseblock3.denselayer24.conv2[0].weight[:16, :16, :, 0].transpose(0, 2),
                      num_iteration)
     writer.add_image('Weights/denseblock2.denselayer12.conv2',
-                     densenet.features.denseblock2.denselayer12.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     densenet.features.denseblock2.denselayer12.conv2[0].weight[:16, :16, :, 0].transpose(0, 2),
                      num_iteration)
     writer.add_image('Weights/denseblock1.denselayer6.conv2',
-                     densenet.features.denseblock1.denselayer6.conv2.weight[:16, :16, :, 0].transpose(0, 2),
+                     densenet.features.denseblock1.denselayer6.conv2[0].weight[:16, :16, :, 0].transpose(0, 2),
                      num_iteration)
 
     # writer.add_embedding(activations[12], global_step=num_iteration)
@@ -80,11 +80,13 @@ if __name__ == "__main__":
     savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_2"
     logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_2"
 
-    # Image Size fed to the network
+    # Network
     inputsize = [224, 224]
+    dropout = True
+    P_drop = 0.2  # Original paper : 0.2
 
     # Number of images in the train dataset
-    nrows = 256
+    nrows = None  # None for the whole dataset
 
     # Optimizer
     learning_rate = 0.001
@@ -110,6 +112,10 @@ if __name__ == "__main__":
         densenet = myDenseNet().cuda()
     else:
         densenet = myDenseNet()
+
+    # Add dropout
+    if dropout:
+        densenet = addDropout(densenet, p=P_drop)
 
     # Writer
     writer = initWriter(savemodeldir, logdir)
@@ -158,8 +164,8 @@ if __name__ == "__main__":
             # Validation
             if num_iteration % val_every_n_iter == 0:
 
+                densenet.eval()
                 writeImages(writer, activations=densenet(data))
-
                 test_loss = torch.zeros(1, requires_grad=False)
 
                 if torch.cuda.is_available():
@@ -184,3 +190,5 @@ if __name__ == "__main__":
                 # Save model
                 torch.save(densenet.state_dict(),
                            os.path.join(savemodeldir, 'model_' + str(num_iteration) + '.pth'))
+
+                densenet.train()

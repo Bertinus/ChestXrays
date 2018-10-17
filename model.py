@@ -23,6 +23,21 @@ def averageCrossEntropy(output, label):
     return loss
 
 
+def addDropoutRec(module, p):
+    if isinstance(module, nn.modules.conv.Conv2d) or isinstance(module, nn.modules.Linear):
+        return nn.Sequential(module, nn.Dropout(p))
+    for name in module._modules.keys():
+        module._modules[name] = addDropoutRec(module._modules[name], p=p)
+
+    return module
+
+
+def addDropout(net, p=0.1):
+    net.features = addDropoutRec(net.features, p=p)
+    net.classifier = addDropoutRec(net.classifier, p=p)
+    return net
+
+
 class myDenseNet(nn.Module):
     """
     see https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
@@ -53,7 +68,7 @@ if __name__ == "__main__":
     # Test model
     ####################################################################################################################
 
-    print([method_name for method_name in dir(models.densenet121(pretrained=True))])
+    # print([method_name for method_name in dir(models.densenet121(pretrained=True))])
 
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
@@ -64,38 +79,35 @@ if __name__ == "__main__":
     mydensenet = myDenseNet()
     origdensenet = models.densenet121(pretrained=True)
 
-    for mod1 in mydensenet.features.children():
-        if isinstance(mod1, nn.modules.conv.Conv2d):
-            print("mod1", mod1)
-        elif isinstance(mod1, nn.modules.BatchNorm2d):
-            print("mod1", mod1)
-        elif isinstance(mod1, nn.modules.ReLU):
-            print("mod1", mod1)
-        elif isinstance(mod1, nn.modules.MaxPool2d):
-            print("mod1", mod1)
-        else:
-            for mod2 in mod1.children():
-        #     if isinstance(mod2, nn.modules.conv.Conv2d):
-                print(mod2)
-        #         for mod3 in mod2.children():
-        #             if isinstance(mod3, nn.modules.conv.Conv2d):
-        #                 print(mod3)
-
-    quit()
-
-
-
     # print(type(densenet.classifier[0]), type(densenet.classifier[1]))
     #
-    for name, param in mydensenet.named_parameters():
-        print(name, param.requires_grad)
+    # for name, param in mydensenet.named_parameters():
+    #     print(name, param.requires_grad)
 
     dataloader_iterator = Iterator(MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16))
 
     data, label = dataloader_iterator.next()
 
+    mydensenet.eval()
+
     # print(data.size())
-    # print(mydensenet(data))
+    print(mydensenet(data)[-1])
+
+    mydensenet = addDropout(mydensenet, p=0.1)
+
+    # for name, param in mydensenet.named_parameters():
+    #     print(name, param.requires_grad)
+
+    mydensenet.eval()
+
+    print(mydensenet(data)[-1])
+
+    # for name, param in mydensenet.named_parameters():
+    #     print(name, param.requires_grad)
+
+
+
+
     # print(origdensenet(data))
 
     # activations = mydensenet(data)
@@ -109,6 +121,8 @@ if __name__ == "__main__":
     # print(mydensenet.features.denseblock3.denselayer24.conv2.weight.size())
     # print(mydensenet.features.denseblock2.denselayer12.conv2.weight.size())
     # print(mydensenet.features.denseblock1.denselayer6.conv2.weight.size())
+
+    quit()
 
     ####################################################################################################################
     # Test loss function
