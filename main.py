@@ -82,8 +82,8 @@ if __name__ == "__main__":
 
     # Network
     inputsize = [224, 224]
-    dropout = False
-    P_drop = 0.1  # Original paper : 0.2
+    dropout = True
+    P_drop = 0.  # Original paper : 0.2
 
     # Number of images in the train dataset
     nrows = None  # None for the whole dataset
