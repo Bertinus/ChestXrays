@@ -77,13 +77,13 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_1"
-    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_1"
+    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_2"
+    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_2"
 
     # Network
     inputsize = [224, 224]
     dropout = True
-    P_drop = 0.2  # Original paper : 0.2
+    P_drop = 0.1  # Original paper : 0.2
 
     # Number of images in the train dataset
     nrows = None  # None for the whole dataset
