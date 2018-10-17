@@ -1,5 +1,12 @@
 # ChestXrays
 
+## Conda
+
+The conda environment used for this project is provided with the **spec-file.txt**
+To use the spec file to create an identical environment, run :
+
+conda create --name myenv --file spec-file.txt
+
 ## Related papers
 
 ### Xrays
@@ -21,3 +28,4 @@
 - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](https://arxiv.org/pdf/1506.02142.pdf)
 - [Deep Bayesian Active Learning with Image Data](https://arxiv.org/pdf/1703.02910.pdf)
 - [Weight Uncertainty in Neural Networks](https://arxiv.org/pdf/1505.05424.pdf)
+
