@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import numpy as np
-
+import glob
 
 class XrayDataset(Dataset):
 
@@ -18,7 +18,11 @@ class XrayDataset(Dataset):
                             "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
         # Load data
-        self.Data = pd.read_csv(csvpath, nrows=nrows)
+        df = pd.read_csv(csvpath, nrows=nrows)
+        
+        #Filter for image file that exist in data dir
+        ImgFiles = [f.split('/')[-1] for f in glob.glob(datadir+"*.png")]
+        self.Data = df[df["Image Index"].isin(ImgFiles)].reset_index()
 
     def __len__(self):
         return len(self.Data)
