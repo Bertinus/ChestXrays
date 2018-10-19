@@ -22,7 +22,7 @@ conda create --name myenv --file spec-file.txt
 - [Adversarially Learned Inference (ALI)](https://arxiv.org/pdf/1606.00704.pdf)
 - [Adversarial Feature Learning](https://arxiv.org/pdf/1605.09782.pdf)
 - [Unsupervised Anomaly Detection with Generative Adversarial Networks to Guide Marker Discovery](https://arxiv.org/pdf/1703.05921.pdf)
-
+- [Efficient GAN-Based Anomaly Detection](https://arxiv.org/pdf/1802.06222)
 ### Uncertainty
 
 - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](https://arxiv.org/pdf/1506.02142.pdf)
