@@ -33,7 +33,9 @@ def addDropoutRec(module, p):
 
 
 def addDropout(net, p=0.1):
-    net.features = addDropoutRec(net.features, p=p)
+    for name in net.features._modules.keys():
+        if name != "conv0":
+            net.features._modules[name] = addDropoutRec(net.features._modules[name], p=p)
     net.classifier = addDropoutRec(net.classifier, p=p)
     return net
 
@@ -91,16 +93,16 @@ if __name__ == "__main__":
     mydensenet.eval()
 
     # print(data.size())
-    print(mydensenet(data)[-1])
+    # print(mydensenet(data)[-1])
 
     mydensenet = addDropout(mydensenet, p=0.1)
 
-    # for name, param in mydensenet.named_parameters():
-    #     print(name, param.requires_grad)
+    for name, param in mydensenet.named_parameters():
+        print(name, param.requires_grad)
 
     mydensenet.eval()
 
-    print(mydensenet(data)[-1])
+    # print(mydensenet(data)[-1])
 
     # for name, param in mydensenet.named_parameters():
     #     print(name, param.requires_grad)
