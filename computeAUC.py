@@ -49,12 +49,12 @@ if __name__ == "__main__":
     # Model
     if torch.cuda.is_available():
         densenet = myDenseNet().cuda()
-        densenet.load_state_dict(torch.load(saved_model_path))
         densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(torch.load(saved_model_path))
     else:
         densenet = myDenseNet()
-        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
         densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
 
     cpt = 0
     densenet.eval()
