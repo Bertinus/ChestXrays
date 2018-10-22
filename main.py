@@ -4,6 +4,7 @@ import os
 from torch.optim import Adam
 from model import myDenseNet, averageCrossEntropy, addDropout
 from tensorboardX import SummaryWriter
+from torch.optim.lr_scheduler import StepLR
 
 
 def initWriter(savemodeldir, logdir):
@@ -91,6 +92,10 @@ if __name__ == "__main__":
     # Optimizer
     learning_rate = 0.001
 
+    # scheduler
+    sched_step_size = 10
+    sched_gamma = 0.1
+
     # Training
     num_epochs = 100
     val_every_n_iter = 200
@@ -125,6 +130,7 @@ if __name__ == "__main__":
 
     # Optimizer
     optimizer = Adam(densenet.parameters(), lr=learning_rate)
+    scheduler = StepLR(optimizer, step_size=sched_step_size, gamma=sched_gamma)  # Used to decay learning rate
 
     ####################################################################################################################
     # Training
@@ -136,6 +142,9 @@ if __name__ == "__main__":
     val_iterator = Iterator(val_dataloader)  # Iterator for validation samples
 
     for epoch in range(num_epochs):
+
+        scheduler.step()
+
         # Training
         for data, label in train_dataloader:
 
