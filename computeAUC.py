@@ -1,7 +1,7 @@
 from dataset import MyDataLoader
 import torch
 import os
-from model import myDenseNet
+from model import myDenseNet, addDropout
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 import matplotlib.pyplot as plt
@@ -50,9 +50,11 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         densenet = myDenseNet().cuda()
         densenet.load_state_dict(torch.load(saved_model_path))
+        densenet = addDropout(densenet, p=0)
     else:
         densenet = myDenseNet()
         densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        densenet = addDropout(densenet, p=0)
 
     cpt = 0
     densenet.eval()
