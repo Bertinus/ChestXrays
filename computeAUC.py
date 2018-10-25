@@ -26,8 +26,8 @@ if __name__ == "__main__":
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/u/bertinpa/Documents/ChestXrays/Logs/model_1/model_235000.pth"
-    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_235000"
+    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_1/model_178800.pth"
+    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_178800"
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
