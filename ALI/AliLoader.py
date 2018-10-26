@@ -16,7 +16,7 @@ class XrayDataset(Dataset):
         return len(self.ImgFiles)
 
     def __getitem__(self, idx):
-        im = imageio.imread(os.path.join(self.datadir, self.ImgFiles[idx]))
+        im = misc.imread(os.path.join(self.datadir, self.ImgFiles[idx]))
         
         #Add color chanel
         im = im[:,:,None]
