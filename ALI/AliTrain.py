@@ -7,14 +7,17 @@ import numpy as np
 
 Epoch = 10
 LS = 128 #Latent Space Size
-batch_size = 24
+batch_size = 100
 ColorsNumber = 1
 
 lr = 1e-4
 b1 = 0.5
 b2 = 1e-3
 
+
+
 ModelDir = "./model"
+
 
 #Encoder param
 EncKernel = [5,4,4,4,4,1,1]
@@ -46,6 +49,10 @@ DxzDepth = [1024,1024,1]
 
 #Image Dir
 datadir = "./images/"
+if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/images"):
+    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images/"
+
+
 
 #Load data
 # Transformations
@@ -150,16 +157,17 @@ for epoch in range(Epoch):
 
         print("Epoch:%d c:%d Loss:%.4f" % (epoch,c,DiscriminatorLoss[-1]))
         
-        
-        
+    tosave = -1
+    if epoch % 100 == 0:
+        tosave = epoch    
     # do checkpointing
     torch.save(GenX.state_dict(),
-               '{0}/GenX_epoch_{1}.pth'.format(ModelDir, epoch))
+               '{0}/GenX_epoch_{1}.pth'.format(ModelDir, tosave))
     torch.save(GenZ.state_dict(),
-               '{0}/GenZ_epoch_{1}.pth'.format(ModelDir, epoch))
+               '{0}/GenZ_epoch_{1}.pth'.format(ModelDir, tosave))
     torch.save(DisX.state_dict(),
-               '{0}/DisX_epoch_{1}.pth'.format(ModelDir, epoch))
+               '{0}/DisX_epoch_{1}.pth'.format(ModelDir, tosave))
     torch.save(DisZ.state_dict(),
-               '{0}/DisZ_epoch_{1}.pth'.format(ModelDir, epoch))
+               '{0}/DisZ_epoch_{1}.pth'.format(ModelDir, tosave))
     torch.save(DisXZ.state_dict(),
-               '{0}/DisXZ_epoch_{1}.pth'.format(ModelDir, epoch))
+               '{0}/DisXZ_epoch_{1}.pth'.format(ModelDir, tosave))
