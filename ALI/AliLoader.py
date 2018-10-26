@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import glob
 import imageio
 import os
-
+from scipy import misc
 
 class XrayDataset(Dataset):
 
