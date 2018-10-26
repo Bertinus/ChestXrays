@@ -17,7 +17,8 @@ class XrayDataset(Dataset):
 
     def __getitem__(self, idx):
         im = misc.imread(os.path.join(self.datadir, self.ImgFiles[idx]))
-        
+        if len(im.shape) > 2:
+            im = im[:, :, 0]
         #Add color chanel
         im = im[:,:,None]
         # Tranform
