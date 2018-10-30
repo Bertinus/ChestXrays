@@ -6,11 +6,13 @@ from scipy import misc
 
 class XrayDataset(Dataset):
 
-    def __init__(self, datadir, transform=None, nrows=None):
+    def __init__(self, datadir, transform=None, nrows=-1):
 
         self.datadir = datadir
         self.transform = transform
         self.ImgFiles = [f.split('/')[-1] for f in glob.glob(datadir+"*.png")]
+        if nrows > 0:
+            self.ImgFiles = self.ImgFiles[:nrows]
 
     def __len__(self):
         return len(self.ImgFiles)
