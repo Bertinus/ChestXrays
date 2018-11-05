@@ -15,11 +15,16 @@ if __name__ == "__main__":
     pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                    "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
                    "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
+
+    original_paper_results = ["0.8094", "0.7901", "0.7345",
+                              "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
+                              "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
+
     """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_39000.pth"
+    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_178800.pth"
     saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_39000"
 
     """
@@ -82,12 +87,14 @@ if __name__ == "__main__":
     # Compute AUC
     ####################################################################################################################
 
+    print("# Results\n\n| desease | them  |  us  |\n|---|---|---|")
+
     for i in range(14):
         if (all_labels[:, i] == 0).all():
-            print(pathologies[i], "ERR")
+            print("|", pathologies[i], "|", original_paper_results[i], "|", "ERR |")
         else:
             auc = roc_auc_score(all_labels[:, i], all_outputs[:, i])
-            print(pathologies[i], auc)
+            print("|", pathologies[i], "|", original_paper_results[i], "|", str(auc)[:6], "|")
             fpr, tpr, thres = roc_curve(all_labels[:, i], all_outputs[:, i])
             plt.subplot(121)
             plt.plot(fpr, tpr)
