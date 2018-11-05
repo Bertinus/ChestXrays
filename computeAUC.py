@@ -4,6 +4,7 @@ import os
 from model import myDenseNet, addDropout
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.model_selection import ShuffleSplit
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
@@ -19,7 +20,6 @@ if __name__ == "__main__":
     original_paper_results = ["0.8094", "0.7901", "0.7345",
                               "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
                               "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
-
     """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
@@ -37,6 +37,8 @@ if __name__ == "__main__":
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
     n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
+    n_splits = 5  # Number of randomized splits to compute standard deviations
+    split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
     ####################################################################################################################
     # Compute predictions
@@ -73,11 +75,11 @@ if __name__ == "__main__":
         output = densenet(data)[-1]
 
         if torch.cuda.is_available():
-            all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().cpu().numpy()
-            all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().cpu().numpy()
+            all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().cpu().numpy()
+            all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().cpu().numpy()
         else:
-            all_labels[cpt*batch_size: (cpt+1)*batch_size] = label.detach().numpy()
-            all_outputs[cpt*batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
+            all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().numpy()
+            all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
 
         cpt += 1
         if cpt == n_batch:
@@ -93,12 +95,21 @@ if __name__ == "__main__":
         if (all_labels[:, i] == 0).all():
             print("|", pathologies[i], "|", original_paper_results[i], "|", "ERR |")
         else:
-            auc = roc_auc_score(all_labels[:, i], all_outputs[:, i])
-            print("|", pathologies[i], "|", original_paper_results[i], "|", str(auc)[:6], "|")
+            # Compute AUC and STD with randomized splits
+            split_auc = [roc_auc_score(all_labels[split_index, i], all_outputs[split_index, i])
+                         for split_index, _ in split.split(all_outputs) if not (all_labels[split_index, i] == 0).all()]
+
+            auc = np.mean(split_auc)
+            std = np.std(split_auc)
+
+            print("|", pathologies[i], "|", original_paper_results[i], "|",
+                  str(auc)[:6], "+-", str(std)[:6], "|")
+
+            # Save ROC curve
             fpr, tpr, thres = roc_curve(all_labels[:, i], all_outputs[:, i])
             plt.subplot(121)
             plt.plot(fpr, tpr)
-            plt.text(0.6, 0.2, "AUC="+str(auc)[:4])
+            plt.text(0.6, 0.2, "AUC=" + str(auc)[:4])
             plt.xlabel("False Positive Rate")
             plt.ylabel("True Positive Rate")
             plt.title(pathologies[i] + " ROC")
