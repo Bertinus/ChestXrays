@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # Compute predictions
     ####################################################################################################################
 
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=False)
 
     if n_batch == -1:
         n_batch = len(val_dataloader)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
 
     cpt = 0
-    densenet.train()
+    densenet.test()
 
     for data, label in val_dataloader:
 

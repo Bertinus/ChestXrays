@@ -42,16 +42,24 @@ class XrayDataset(Dataset):
         return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32)
 
 
-def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False):
+def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False, flip=True):
     # Transformations
-    data_transforms = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.RandomHorizontalFlip(),
-        # transforms.RandomVerticalFlip(),
-        transforms.Resize(inputsize),
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.repeat(3, 1, 1))
-    ])
+    if flip:
+        data_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomHorizontalFlip(),
+            # transforms.RandomVerticalFlip(),
+            transforms.Resize(inputsize),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.repeat(3, 1, 1))
+        ])
+    else:
+        data_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize(inputsize),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.repeat(3, 1, 1))
+        ])
 
     # Initialize dataloader
     dataset = XrayDataset(datadir, csvpath, transform=data_transforms, nrows=nrows)
