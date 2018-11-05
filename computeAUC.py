@@ -64,7 +64,7 @@ if __name__ == "__main__":
         densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
 
     cpt = 0
-    densenet.test()
+    densenet.eval()
 
     for data, label in val_dataloader:
 
