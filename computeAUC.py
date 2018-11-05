@@ -25,7 +25,7 @@ if __name__ == "__main__":
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
     saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_178800.pth"
-    saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_39000"
+    saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_test"
 
     """
     # Server
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
 
     cpt = 0
-    densenet.eval()
+    densenet.train()
 
     for data, label in val_dataloader:
 
