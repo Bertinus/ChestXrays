@@ -58,48 +58,35 @@ if __name__ == "__main__":
             data = data.cuda()
             label = label.cuda()
 
-        if label[0, 10] == 0:
+        activation = densenet(data)[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
+        classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
 
-            activation = densenet(data)[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
-            classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
+        # List of heatmaps to be plotted
+        heatmaps = [torch.sum(classif_weight[i] * activation, dim=2).numpy().clip(min=0)
+                    for i in range(len(classif_weight))]
 
-            # List of heatmaps to be plotted
-            heatmaps = [torch.sum(classif_weight[i] * activation, dim=2).numpy().clip(min=0)
-                        for i in range(len(classif_weight))]
+        data = data.numpy()[0, 0]
+        heatmaps = [imresize(x, data.shape)*np.max(x)/255 for x in heatmaps]
 
-            data = data.numpy()[0, 0]
-            heatmaps = [imresize(x, data.shape)*np.max(x)/255 for x in heatmaps]
+        # Use base cmap to create transparent
+        mycmap = transparent_cmap(plt.cm.Reds)
+        y, x = np.mgrid[0:224, 0:224]
 
-            # Use base cmap to create transparent
-            mycmap = transparent_cmap(plt.cm.Reds)
-            y, x = np.mgrid[0:224, 0:224]
+        fig, ax = plt.subplots(1, 1)
+        plt.imshow(data, cmap="gray")
+        plt.axis('off')
+        plt.title("Original image")
+        plt.show()
 
+        # For a given image, plot 14 heatmaps corresponding to the 14 deseases 
+        for i in range(14):
             fig, ax = plt.subplots(1, 1)
             plt.imshow(data, cmap="gray")
+            if not (heatmaps[i] == 0).all():
+                cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
+                # fig.colorbar(cb)
+            plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
             plt.axis('off')
-            plt.title("Original image")
             plt.show()
 
-            for i in range(14):
-                fig, ax = plt.subplots(1, 1)
-                plt.imshow(data, cmap="gray")
-                if not (heatmaps[i] == 0).all():
-                    cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
-                    # fig.colorbar(cb)
-                plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
-                plt.axis('off')
-                plt.show()
-
-            quit()
-
-
-            # fig, ax = plt.subplots(1, 1)
-            # plt.imshow(data, cmap="gray")
-            # if not (heatmaps[10] == 0).all():
-            #     cb = ax.contourf(x, y, heatmaps[10], 8, cmap=mycmap, vmin=0, vmax=8)
-            #     # fig.colorbar(cb)
-            # plt.title(pathologies[10] + " (ground truth : " + str(label[0, 10].numpy())[0] + ")")
-            # plt.axis('off')
-            # plt.show()
-            #
-            # quit()
+        quit()
