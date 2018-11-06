@@ -74,30 +74,32 @@ if __name__ == "__main__":
             mycmap = transparent_cmap(plt.cm.Reds)
             y, x = np.mgrid[0:224, 0:224]
 
-            # fig, ax = plt.subplots(1, 1)
-            # plt.imshow(data, cmap="gray")
-            # plt.axis('off')
-            # plt.title("Original image")
-            # plt.show()
-
-            # for i in range(14):
-            #     fig, ax = plt.subplots(1, 1)
-            #     plt.imshow(data, cmap="gray")
-            #     if not (heatmaps[i] == 0).all():
-            #         cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
-            #         # fig.colorbar(cb)
-            #     plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
-            #     plt.axis('off')
-            #     plt.show()
-            #
-
             fig, ax = plt.subplots(1, 1)
             plt.imshow(data, cmap="gray")
-            if not (heatmaps[10] == 0).all():
-                cb = ax.contourf(x, y, heatmaps[10], 8, cmap=mycmap, vmin=0, vmax=8)
-                # fig.colorbar(cb)
-            plt.title(pathologies[10] + " (ground truth : " + str(label[0, 10].numpy())[0] + ")")
             plt.axis('off')
+            plt.title("Original image")
             plt.show()
 
+            for i in range(14):
+                fig, ax = plt.subplots(1, 1)
+                plt.imshow(data, cmap="gray")
+                if not (heatmaps[i] == 0).all():
+                    cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
+                    # fig.colorbar(cb)
+                plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
+                plt.axis('off')
+                plt.show()
+
             quit()
+
+
+            # fig, ax = plt.subplots(1, 1)
+            # plt.imshow(data, cmap="gray")
+            # if not (heatmaps[10] == 0).all():
+            #     cb = ax.contourf(x, y, heatmaps[10], 8, cmap=mycmap, vmin=0, vmax=8)
+            #     # fig.colorbar(cb)
+            # plt.title(pathologies[10] + " (ground truth : " + str(label[0, 10].numpy())[0] + ")")
+            # plt.axis('off')
+            # plt.show()
+            #
+            # quit()
