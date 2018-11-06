@@ -35,7 +35,7 @@ def writeImages(writer, activations):
 
     writer.add_image('Activations/Activation_' + str(9), activations[9][0, 3:6, :, :], num_iteration)
     writer.add_image('Activations/Activation_' + str(11), activations[11][0, 3:6, :, :], num_iteration)
-    writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
+    # writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
     writer.add_image('Activations/BatchOutput', activations[13][None, :, :], num_iteration)
     writer.add_image('Activations/BatchLabels', label, num_iteration)
 

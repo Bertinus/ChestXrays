@@ -78,7 +78,7 @@ if __name__ == "__main__":
         plt.title("Original image")
         plt.show()
 
-        # For a given image, plot 14 heatmaps corresponding to the 14 deseases 
+        # For a given image, plot 14 heatmaps corresponding to the 14 deseases
         for i in range(14):
             fig, ax = plt.subplots(1, 1)
             plt.imshow(data, cmap="gray")
