@@ -31,13 +31,13 @@ if __name__ == "__main__":
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_2/model_235000.pth"
-    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_235000"
+    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_3/model_113800.pth"
+    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_113800"
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
     n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
-    n_splits = 5  # Number of randomized splits to compute standard deviations
+    n_splits = 10  # Number of randomized splits to compute standard deviations
     split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
     ####################################################################################################################
