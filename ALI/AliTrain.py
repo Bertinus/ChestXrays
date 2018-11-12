@@ -2,6 +2,7 @@ from model import *
 from AliLoader import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
+import torchvision.datasets as dset
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
@@ -174,7 +175,8 @@ from torch.autograd import Variable
 ConstantZ = torch.randn(9,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
-    
+
+#Keep some constant image for printing    
 ConstantImg = DataLoader(dataset, shuffle=False, batch_size=9)
 for dataiter in ConstantImg:
     ConstantX = dataiter*2.0-1.0
@@ -182,9 +184,21 @@ for dataiter in ConstantImg:
         ConstantX = ConstantX.cuda()
     break
 
+#MNIST
+MNIST_set = dset.MNIST(root=ExpDir, train=True, transform=data_transforms, download=True)
+MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=9,shuffle=False)
+
+
 #Loss function
 criterion = nn.BCELoss()
 for epoch in range(Epoch):
+    #Set to train
+    GenX.train()
+    GenZ.train()
+    DisX.train()
+    DisZ.train()
+    DisXZ.train()
+
     if epoch <= opt.checkpoint:
         continue
     c = 0
@@ -266,6 +280,15 @@ for epoch in range(Epoch):
     #Print some image
     
     #Print generated
+    
+    #Set to eval
+    GenX.eval()
+    GenZ.eval()
+    DisX.eval()
+    DisZ.eval()
+    DisXZ.eval()
+    
+    
     with torch.no_grad():
         FakeData = GenX(ConstantZ)
         PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
@@ -300,6 +323,9 @@ for epoch in range(Epoch):
     
     
     with torch.no_grad():
+        
+    
+    
         #Generate Latent from Real
         RealZ = GenZ(ConstantX)
         RebuildX = GenX(RealZ)
@@ -316,10 +342,12 @@ for epoch in range(Epoch):
         DiffX = DiffX.detach().numpy()
         DiffX = np.power(DiffX,2)
         RebuildX = RebuildX.detach().numpy()
-        
-    plt.figure(figsize=(8,8))
+    
+    
+    Sample = 9   
+    plt.figure(figsize=(8*Sample/3.0,8))
     c = 0
-    Sample = 3
+    
     for i in range(Sample):
         c+= 1
         plt.subplot(Sample,3,c)
@@ -339,7 +367,7 @@ for epoch in range(Epoch):
         plt.axis("off")
         
     plt.savefig("%s/images/%s_Rebuild_epoch_%d.png" % (ExpDir,opt.name,tosave))
-    
+    break
     #Todo
     
     #T-SNE    
