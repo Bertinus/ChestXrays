@@ -78,8 +78,8 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
-    logdir = "/data/milatmp1/bertinpa/Logs/training_3"
+    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_1"
+    logdir = "/data/milatmp1/bertinpa/Logs/training_1"
 
     # Network
     inputsize = [224, 224]
@@ -97,6 +97,7 @@ if __name__ == "__main__":
     sched_gamma = 0.5
 
     # Training
+    batch_size = 16
     num_epochs = 100
     val_every_n_iter = 200
     batch_per_val_session = 10
@@ -109,8 +110,8 @@ if __name__ == "__main__":
     print("Initializing...")
 
     # Dataloaders
-    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16, nrows=nrows)
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=16)
+    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size)
 
     # Model
     if torch.cuda.is_available():
