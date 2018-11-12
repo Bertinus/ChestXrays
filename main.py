@@ -78,13 +78,13 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_1"
-    logdir = "/data/milatmp1/bertinpa/Logs/training_1"
+    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_2"
+    logdir = "/data/milatmp1/bertinpa/Logs/training_2"
 
     # Network
     inputsize = [224, 224]
     dropout = True
-    P_drop = 0.01  # Original paper : 0.2
+    P_drop = 0.  # Original paper : 0.2
 
     # Number of images in the train dataset
     nrows = None  # None for the whole dataset
@@ -94,10 +94,10 @@ if __name__ == "__main__":
 
     # scheduler
     sched_step_size = 10
-    sched_gamma = 0.5
+    sched_gamma = 0.1
 
     # Training
-    batch_size = 16
+    batch_size = 32
     num_epochs = 100
     val_every_n_iter = 200
     batch_per_val_session = 10
