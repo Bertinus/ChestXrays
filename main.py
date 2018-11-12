@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-
+    """
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # Server Writer
     savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
     logdir = "/data/milatmp1/bertinpa/Logs/training_3"
-    """
+
     # Network
     inputsize = [448, 448]
     dropout = True
@@ -115,9 +115,9 @@ if __name__ == "__main__":
 
     # Model
     if torch.cuda.is_available():
-        densenet = myDenseNet(in_features=1024).cuda()
+        densenet = myDenseNet().cuda()
     else:
-        densenet = myDenseNet(in_features=1024)
+        densenet = myDenseNet()
 
     # Add dropout
     if dropout:

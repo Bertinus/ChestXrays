@@ -9,3 +9,4 @@
 
 - model 1 : 0.01 dropout, horizontal flip only, learning rate decay (x0.5 every 10 epochs)
 - model 2 : No dropout, horizontal flip only, learning rate decay (x0.1 every 10 epochs) batch size 32
+- model 3 : No dropout, horizontal flip only, learning rate decay (x0.1 every 10 epochs) batch size 16, input size 448
