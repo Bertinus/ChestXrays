@@ -1,5 +1,6 @@
 from model import *
 from AliLoader import *
+from ALI_Out import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
@@ -112,9 +113,14 @@ data_transforms = transforms.Compose([
 
 # Initialize dataloader
 dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
-dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
-DataLen = len(dataset)
 
+DataLen = len(dataset)
+train_size = int(DataLen*0.8)
+test_size = DataLen-train_size
+train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
+
+dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
+ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
 print("Dataset Len = %d" % (DataLen))
 
 #Create Model
@@ -139,12 +145,12 @@ if opt.checkpoint == -2:
 #Check if checkpoint exist
 if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)):
     print("Checkpoint %d exist, will load param and start training from there" % (opt.checkpoint))
-    DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)))
-    DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)))
-    DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)))
+    DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
+    DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
+    DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
     
-    GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)))
-    GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)))
+    GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
+    GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
     print("Done loading")
 
 if torch.cuda.is_available():
@@ -176,17 +182,11 @@ ConstantZ = torch.randn(9,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
 
-#Keep some constant image for printing    
-ConstantImg = DataLoader(dataset, shuffle=False, batch_size=9)
-for dataiter in ConstantImg:
-    ConstantX = dataiter*2.0-1.0
-    if torch.cuda.is_available():
-        ConstantX = ConstantX.cuda()
-    break
 
 #MNIST
-MNIST_set = dset.MNIST(root=ExpDir, train=True, transform=data_transforms, download=True)
-MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=9,shuffle=False)
+MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
+MNIST_set = dset.MNIST(root=ExpDir, train=True, transform=MNIST_transform, download=True)
+MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=batch_size,shuffle=False)
 
 
 #Loss function
@@ -203,7 +203,7 @@ for epoch in range(Epoch):
         continue
     c = 0
     for dataiter in dataloader:
-        
+        break
         #Get Data
         Xnorm = dataiter *2.0 - 1.0
         #Get Batch Size
@@ -288,7 +288,7 @@ for epoch in range(Epoch):
     DisZ.eval()
     DisXZ.eval()
     
-    
+    #Print Fake
     with torch.no_grad():
         FakeData = GenX(ConstantZ)
         PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
@@ -311,62 +311,45 @@ for epoch in range(Epoch):
         plt.axis("off")
     plt.savefig("%s/images/%s_Gen_epoch_%d.png" % (ExpDir,opt.name,tosave))
     
-    
-    #Print Rebuild
-    # Get the colormap colors
-    cmap = plt.cm.Reds
-    AlphaRed = cmap(np.arange(cmap.N))
-    # Set alpha
-    AlphaRed[:,-1] = np.linspace(0, 1, cmap.N)
-    # Create new colormap
-    AlphaRed = ListedColormap(AlphaRed)
-    
-    
-    with torch.no_grad():
-        
-    
-    
-        #Generate Latent from Real
-        RealZ = GenZ(ConstantX)
-        RebuildX = GenX(RealZ)
-        DiffX = ConstantX - RebuildX
-        
-        #Have discriminator do is thing on real and fake data
-        PredReal  = DisXZ(torch.cat((DisZ(RealZ), DisX(ConstantX)), 1))
+    #Reconstruct real
+    toprint = True
+    RealDiscSc = []
+    RealRecErr = []
+    RealZ = []
+    for dataiter in ConstantImg:
+        ConstantX = dataiter*2.0-1.0
         if torch.cuda.is_available():
-            DiffX = DiffX.cpu()
-            RebuildX = RebuildX.cpu()
-            PredReal = PredReal.cpu()
-            
-        PredReal = PredReal.detach().numpy()
-        DiffX = DiffX.detach().numpy()
-        DiffX = np.power(DiffX,2)
-        RebuildX = RebuildX.detach().numpy()
-    
-    
-    Sample = 9   
-    plt.figure(figsize=(8*Sample/3.0,8))
-    c = 0
-    
-    for i in range(Sample):
-        c+= 1
-        plt.subplot(Sample,3,c)
-        plt.imshow(ConstantX[i][0],cmap="gray")
-        plt.title("Init Disc=%.2f" % (PredReal[i]))
-        plt.axis("off")
-        c+= 1
-        plt.subplot(Sample,3,c)
-        plt.imshow(RebuildX[i][0],cmap="gray")
-        plt.title("Reconstruct")
-        plt.axis("off")
-        c+= 1
-        plt.subplot(Sample,3,c)
-        plt.imshow(ConstantX[i][0],cmap="gray")
-        plt.title("Rec Error = %.2f" % (np.mean(DiffX[i][0])))
-        plt.imshow(DiffX[i][0]*np.power(c,2),cmap=AlphaRed)
-        plt.axis("off")
+            ConstantX = ConstantX.cuda()
+        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = "Xray",Sample = 3,SaveFile=toprint)
+        RealDiscSc += DiscSc
+        RealRecErr += RecErr
+        RealZ += Z
+        toprint = False
         
-    plt.savefig("%s/images/%s_Rebuild_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    #Reconstruct MNIST
+    toprint = True
+    MNISTDiscSc = []
+    MNISTRecErr = []
+    MNISTZ = []
+    for mnist,lab in MNIST_loader:
+        Xnorm = mnist *2.0 - 1.0
+        if torch.cuda.is_available():
+            Xnorm = Xnorm.cuda()
+        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,Xnorm,ExpDir,opt.name,tosave,ImageType = "MNIST",Sample = 3,SaveFile=toprint)
+        MNISTDiscSc += DiscSc
+        MNISTRecErr += RecErr
+        MNISTZ += Z
+        if len(MNISTDiscSc) >= len(RealDiscSc):
+            break
+        toprint = False
+    from sklearn import manifold
+    
+    tsne = manifold.TSNE(n_components=2)
+    Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ)))
+    plt.scatter(Y[:len(RealZ),0],Y[:len(RealZ),1],c="red",label="X-ray")
+    plt.scatter(Y[len(RealZ):,0],Y[len(RealZ):,1],c="blue",label="MNIST")
+    plt.legend()
+    plt.savefig("%s/images/%s_TSNE_epoch_%d.png" % (ExpDir,opt.name,tosave))
     break
     #Todo
     
