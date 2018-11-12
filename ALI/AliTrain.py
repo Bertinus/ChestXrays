@@ -4,8 +4,12 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 import argparse
+
+
 
 parser = argparse.ArgumentParser()
 #Parse command line
@@ -17,8 +21,9 @@ parser.add_argument('--beta2', type=float, default=1e-3, help='beta2 for adam. d
 parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for optimizer, default=0.00005')
 parser.add_argument('--N', type=int, default=-1, help='Number of images to load (-1 for all), default=-1')
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
-parser.add_argument('--checkpoint', type=int, default=-2, help='Checkpoint epoch to load')
-parser.add_argument('--make-check',type = int, default =5,help="When to make checkpoint")
+parser.add_argument('--checkpoint', type=int, default=-3, help='Checkpoint epoch to load')
+parser.add_argument('--make-check',type = int, default =1,help="When to make checkpoint")
+parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 
 opt = parser.parse_args()
 print(opt)
@@ -36,6 +41,14 @@ b2 = opt.beta2
 ModelDir = "./model/"
 if os.path.exists("/data/milatmp1/frappivi/ALI_model"):
     ModelDir = "/data/milatmp1/frappivi/ALI_model/"
+    
+if opt.wrkdir != "NA":
+    if not os.path.exists(opt.wrkdir):
+        os.makedirs(opt.wrkdir)
+    ModelDir = opt.wrkdir
+else:
+    print("No --wrkdir", opt.wrkdir)
+    
     
 ExpDir = ModelDir+opt.name
 if not os.path.exists(ExpDir):
@@ -100,6 +113,7 @@ data_transforms = transforms.Compose([
 dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
 dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size)
 DataLen = len(dataset)
+
 print("Dataset Len = %d" % (DataLen))
 
 #Create Model
@@ -110,6 +124,16 @@ DisXZ = DiscriminatorXZ(KS=DxzKernel,ST=DxzStride,DP=DxzDepth)
 
 GenZ = Encoder(KS=EncKernel,ST=EncStride,DP=EncDepth,LS=LS)
 GenX = Generator(latent_size=LS,KS=GenKernel,ST=GenStride,DP=GenDepth)
+
+#Check checkpoint to use
+if opt.checkpoint == -2:
+    #Find latest
+    MaxCk = 0
+    for fck in glob.glob('{0}/models/{1}_DisXZ_epoch_*.pth'.format(ExpDir,opt.name)):
+        nck = fck.split("_")[-1].split(".")[0]
+        if int(nck) > MaxCk:MaxCk = int(nck)
+    opt.checkpoint = MaxCk
+    print("I found this last checkpoint %d" % (opt.checkpoint))
 
 #Check if checkpoint exist
 if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)):
@@ -135,7 +159,7 @@ if torch.cuda.is_available():
 
 
 
-
+#Optimiser
 optimizerG = optim.Adam([{'params' : GenX.parameters()},
                          {'params' : GenZ.parameters()}], lr=lr, betas=(b1,b2))
 
@@ -146,11 +170,19 @@ DiscriminatorLoss = []
 
 from torch.autograd import Variable
 
-
+#Keep same random seed for image testing
 ConstantZ = torch.randn(9,LS,1,1)
+if torch.cuda.is_available():
+    ConstantZ = ConstantZ.cuda()
+    
+ConstantImg = DataLoader(dataset, shuffle=False, batch_size=9)
+for dataiter in ConstantImg:
+    ConstantX = dataiter*2.0-1.0
+    if torch.cuda.is_available():
+        ConstantX = ConstantX.cuda()
+    break
 
-cpt = 0
-
+#Loss function
 criterion = nn.BCELoss()
 for epoch in range(Epoch):
     if epoch <= opt.checkpoint:
@@ -213,7 +245,7 @@ for epoch in range(Epoch):
         #StoreInfo .cpu().numpy()
         DiscriminatorLoss.append(loss_d.cpu().detach().numpy()+0)
         c += BS
-        print("Epoch:%3d c:%6d/%6d = %.2f Loss:%.4f" % (epoch,c,DataLen,c/float(DataLen)*100,DiscriminatorLoss[-1]))
+        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f" % (epoch,c,DataLen,c/float(DataLen)*100,DiscriminatorLoss[-1]))
         
     tosave = -1
     if epoch % opt.make_check == 0:
@@ -229,3 +261,90 @@ for epoch in range(Epoch):
                '{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
     torch.save(DisXZ.state_dict(),
                '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               
+               
+    #Print some image
+    
+    #Print generated
+    with torch.no_grad():
+        FakeData = GenX(ConstantZ)
+        PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
+
+        if torch.cuda.is_available():
+            FakeData = FakeData.cpu()
+            PredFalse = PredFalse.cpu()
+        
+        FakeData = FakeData.detach().numpy()
+        PredFalse= PredFalse.detach().numpy()
+    
+    plt.figure(figsize=(8,8))
+    c = 0
+    for i in range(9):
+        c +=1
+        #print(fd.shape)
+        plt.subplot(3,3,c)
+        plt.imshow(FakeData[i][0],cmap="gray")
+        plt.title("Disc=%.2f" % (PredFalse[i]))
+        plt.axis("off")
+    plt.savefig("%s/images/%s_Gen_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    
+    
+    #Print Rebuild
+    # Get the colormap colors
+    cmap = plt.cm.Reds
+    AlphaRed = cmap(np.arange(cmap.N))
+    # Set alpha
+    AlphaRed[:,-1] = np.linspace(0, 1, cmap.N)
+    # Create new colormap
+    AlphaRed = ListedColormap(AlphaRed)
+    
+    
+    with torch.no_grad():
+        #Generate Latent from Real
+        RealZ = GenZ(ConstantX)
+        RebuildX = GenX(RealZ)
+        DiffX = ConstantX - RebuildX
+        
+        #Have discriminator do is thing on real and fake data
+        PredReal  = DisXZ(torch.cat((DisZ(RealZ), DisX(ConstantX)), 1))
+        if torch.cuda.is_available():
+            DiffX = DiffX.cpu()
+            RebuildX = RebuildX.cpu()
+            PredReal = PredReal.cpu()
+            
+        PredReal = PredReal.detach().numpy()
+        DiffX = DiffX.detach().numpy()
+        DiffX = np.power(DiffX,2)
+        RebuildX = RebuildX.detach().numpy()
+        
+    plt.figure(figsize=(8,8))
+    c = 0
+    Sample = 3
+    for i in range(Sample):
+        c+= 1
+        plt.subplot(Sample,3,c)
+        plt.imshow(ConstantX[i][0],cmap="gray")
+        plt.title("Init Disc=%.2f" % (PredReal[i]))
+        plt.axis("off")
+        c+= 1
+        plt.subplot(Sample,3,c)
+        plt.imshow(RebuildX[i][0],cmap="gray")
+        plt.title("Reconstruct")
+        plt.axis("off")
+        c+= 1
+        plt.subplot(Sample,3,c)
+        plt.imshow(ConstantX[i][0],cmap="gray")
+        plt.title("Rec Error = %.2f" % (np.mean(DiffX[i][0])))
+        plt.imshow(DiffX[i][0]*np.power(c,2),cmap=AlphaRed)
+        plt.axis("off")
+        
+    plt.savefig("%s/images/%s_Rebuild_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    
+    #Todo
+    
+    #T-SNE    
+        
+                   
+                   
+        
+       
