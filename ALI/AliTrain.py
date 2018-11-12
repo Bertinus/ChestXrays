@@ -8,6 +8,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from sklearn import manifold
 
 import argparse
 
@@ -15,7 +16,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 #Parse command line
-parser.add_argument('--epoch', type=int, default=10, help='Epoch')
+parser.add_argument('--epoch', type=int, default=100, help='Epoch')
 parser.add_argument('--LS', type=int, default=128, help='Latent Size')
 parser.add_argument('--batch-size', type=int, default=100, help='Batch Size')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
@@ -342,7 +343,7 @@ for epoch in range(Epoch):
         if len(MNISTDiscSc) >= len(RealDiscSc):
             break
         toprint = False
-    from sklearn import manifold
+    
     
     tsne = manifold.TSNE(n_components=2)
     Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ)))
