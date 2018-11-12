@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-    """
+
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -78,11 +78,11 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_2"
-    logdir = "/data/milatmp1/bertinpa/Logs/training_2"
-
+    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
+    logdir = "/data/milatmp1/bertinpa/Logs/training_3"
+    """
     # Network
-    inputsize = [224, 224]
+    inputsize = [448, 448]
     dropout = True
     P_drop = 0.  # Original paper : 0.2
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     sched_gamma = 0.1
 
     # Training
-    batch_size = 32
+    batch_size = 16
     num_epochs = 100
     val_every_n_iter = 200
     batch_per_val_session = 10
@@ -115,9 +115,9 @@ if __name__ == "__main__":
 
     # Model
     if torch.cuda.is_available():
-        densenet = myDenseNet().cuda()
+        densenet = myDenseNet(in_features=1024).cuda()
     else:
-        densenet = myDenseNet()
+        densenet = myDenseNet(in_features=1024)
 
     # Add dropout
     if dropout:
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             if num_iteration % val_every_n_iter == 0:
 
                 densenet.eval()
-                writeImages(writer, activations=densenet(data))
+                # writeImages(writer, activations=densenet(data))
                 test_loss = torch.zeros(1, requires_grad=False)
 
                 if torch.cuda.is_available():

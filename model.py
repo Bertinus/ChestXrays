@@ -44,11 +44,11 @@ class myDenseNet(nn.Module):
     """
     see https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
     """
-    def __init__(self, out_features=14):
+    def __init__(self, out_features=14, in_features=1024):
         super(myDenseNet, self).__init__()
         net = models.densenet121(pretrained=True)
         self.features = net.features
-        self.classifier = nn.Sequential(Linear(in_features=1024, out_features=out_features), nn.Sigmoid())
+        self.classifier = nn.Sequential(Linear(in_features=in_features, out_features=out_features), nn.Sigmoid())
 
     def forward(self, x):
         activations = []
@@ -58,7 +58,12 @@ class myDenseNet(nn.Module):
 
         out = F.relu(x, inplace=True)
         activations.append(out)
-        out = F.avg_pool2d(out, kernel_size=7, stride=1).view(x.size(0), -1)
+        print(out.size())
+        # out = F.avg_pool2d(out, kernel_size=7, stride=1)
+        out = F.max_pool2d(out, kernel_size=14, stride=1)
+        print(out.size())
+        out = out.view(x.size(0), -1)
+        print(out.size())
         out = self.classifier(out)
         activations.append(out)
         return activations
