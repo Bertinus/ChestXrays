@@ -183,6 +183,8 @@ if __name__ == "__main__":
 
                 for _ in range(batch_per_val_session):
 
+                    print("toto")
+
                     data, label = val_iterator.next()
 
                     if torch.cuda.is_available():
