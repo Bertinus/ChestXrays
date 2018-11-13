@@ -56,7 +56,7 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
     
     c = 0
     if SaveFile == True:
-        plt.figure(figsize=(8,8*Sample/3.0))
+        fig = plt.figure(figsize=(8,8*Sample/3.0))
         for i in range(Sample):
             c+= 1
             plt.subplot(Sample,3,c)
@@ -72,10 +72,10 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
             plt.subplot(Sample,3,c)
             plt.imshow(ConstantX[i][0],cmap="gray")
             plt.title("Rec Error = %.2f" % (np.mean(DiffX[i][0])))
-            plt.imshow(DiffX[i][0],cmap=AlphaRed,vmin=0, vmax=4)
+            plt.imshow(DiffX[i][0],cmap=AlphaRed,vmin=0, vmax=2)
             plt.axis("off")
-        print("Saving file")   
-        plt.savefig("%s/images/%s_%s_epoch_%d.png" % (ExpDir,Name,ImageType,tosave))
+        #print("Saving file")   
+        fig.savefig("%s/images/%s_%s_epoch_%d.png" % (ExpDir,Name,ImageType,tosave))
         plt.close('all')
         
     RealZ.resize((RealZ.shape[:2]))

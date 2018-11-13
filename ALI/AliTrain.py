@@ -9,7 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from sklearn import manifold
-
+from sklearn import metrics
+from scipy import stats
 import argparse
 
 
@@ -27,6 +28,7 @@ parser.add_argument('--name', type=str, default="default", help='Experiment name
 parser.add_argument('--checkpoint', type=int, default=-3, help='Checkpoint epoch to load')
 parser.add_argument('--make-check',type = int, default =1,help="When to make checkpoint")
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
+parser.add_argument('--eval', help="No Training",action='store_true')
 
 opt = parser.parse_args()
 print(opt)
@@ -107,17 +109,18 @@ inputsize = [32,32]
 data_transforms = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize(inputsize),
+#    transforms.RandomHorizontalFlip(p=1.1),
+#    transforms.RandomVerticalFlip(p=1.1),
     transforms.ToTensor(),
-    #transforms.Lambda(lambda x: x.repeat(3, 1, 1))
-    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 # Initialize dataloader
 dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
 
 DataLen = len(dataset)
-train_size = int(DataLen*0.8)
-test_size = DataLen-train_size
+test_size = 400
+train_size = DataLen-test_size
+
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
 dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
@@ -189,7 +192,10 @@ MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.To
 MNIST_set = dset.MNIST(root=ExpDir, train=True, transform=MNIST_transform, download=True)
 MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=batch_size,shuffle=False)
 
-
+#Other Xray
+OtherXRayDir = "/data/lisa/data/MURA-v1.1/"
+OtherXRay = OtherXrayDataset("./OtherXray/", transform=data_transforms)
+otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=batch_size)
 #Loss function
 criterion = nn.BCELoss()
 for epoch in range(Epoch):
@@ -199,12 +205,13 @@ for epoch in range(Epoch):
     DisX.train()
     DisZ.train()
     DisXZ.train()
-
+    
     if epoch <= opt.checkpoint:
         continue
     c = 0
     for dataiter in dataloader:
-        break
+        if opt.eval == True:
+            break
         #Get Data
         Xnorm = dataiter *2.0 - 1.0
         #Get Batch Size
@@ -301,7 +308,7 @@ for epoch in range(Epoch):
         FakeData = FakeData.detach().numpy()
         PredFalse= PredFalse.detach().numpy()
     
-    plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(8,8))
     c = 0
     for i in range(9):
         c +=1
@@ -310,13 +317,23 @@ for epoch in range(Epoch):
         plt.imshow(FakeData[i][0],cmap="gray")
         plt.title("Disc=%.2f" % (PredFalse[i]))
         plt.axis("off")
-    plt.savefig("%s/images/%s_Gen_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_Gen_epoch_%d.png" % (ExpDir,opt.name,tosave))
     
     #Reconstruct real
     toprint = True
     RealDiscSc = []
     RealRecErr = []
     RealZ = []
+    
+    #Shuffle
+    ShufDiscSc = []
+    ShufRecErr = []
+    ShufZ = []
+    
+    #Flip
+    FlipDiscSc = []
+    FlipRecErr = []
+    FlipZ = []
     for dataiter in ConstantImg:
         ConstantX = dataiter*2.0-1.0
         if torch.cuda.is_available():
@@ -325,6 +342,29 @@ for epoch in range(Epoch):
         RealDiscSc += DiscSc
         RealRecErr += RecErr
         RealZ += Z
+        
+        
+        #Shuffle X-ray image
+        XShuffle = np.copy(ConstantX.reshape(ConstantX.shape[0],ConstantX.shape[-1]*ConstantX.shape[-1]).detach().numpy())
+        np.random.shuffle(XShuffle.transpose())
+        #Back to tensor
+        XShuffle = torch.tensor(XShuffle)
+        XShuffle = XShuffle.reshape(ConstantX.shape[0],1,ConstantX.shape[-1],ConstantX.shape[-1])
+        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,XShuffle,ExpDir,opt.name,tosave,ImageType = "Shuffle",Sample = 3,SaveFile=toprint)
+        ShufDiscSc += DiscSc
+        ShufRecErr += RecErr
+        ShufZ += Z
+        
+        #Flip
+        XFlip = np.copy(ConstantX.detach().numpy())
+        XFlip = XFlip[:,:,range(ConstantX.shape[-1])[::-1],:]
+        XFlip = torch.tensor(XFlip)
+        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,XFlip,ExpDir,opt.name,tosave,ImageType = "Flip",Sample = 3,SaveFile=toprint)
+        
+        FlipDiscSc += DiscSc
+        FlipRecErr += RecErr
+        FlipZ += Z
+        
         toprint = False
         
     #Reconstruct MNIST
@@ -343,18 +383,95 @@ for epoch in range(Epoch):
         if len(MNISTDiscSc) >= len(RealDiscSc):
             break
         toprint = False
-    
+    #Other Xray
+    toprint = True
+    OtherDiscSc = []
+    OtherRecErr = []
+    OtherZ = []
+
+    for oxray in otherxray:
+        Xnorm = oxray *2.0 - 1.0
+        if torch.cuda.is_available():
+            Xnorm = Xnorm.cuda()
+        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,Xnorm,ExpDir,opt.name,tosave,ImageType = "OXray",Sample = 3,SaveFile=toprint)
+        OtherDiscSc += DiscSc
+        OtherRecErr += RecErr
+        OtherZ += Z
+        if len(MNISTDiscSc) >= len(RealDiscSc):
+            break
+        toprint = False
     
     tsne = manifold.TSNE(n_components=2)
-    Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ)))
-    plt.scatter(Y[:len(RealZ),0],Y[:len(RealZ),1],c="red",label="X-ray")
-    plt.scatter(Y[len(RealZ):,0],Y[len(RealZ):,1],c="blue",label="MNIST")
-    plt.legend()
-    plt.savefig("%s/images/%s_TSNE_epoch_%d.png" % (ExpDir,opt.name,tosave))
-    break
-    #Todo
+    Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ,ShufZ,FlipZ,OtherZ)))
+    fig = plt.figure()
+    minc = 0
+    maxc = len(RealZ)
+    plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],c="red",label="X-ray")
+    minc = maxc
+    maxc += len(MNISTZ)
+    plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],c="blue",label="MNIST")
+    minc = maxc
+    maxc += len(ShufZ)
+    plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],c="green",label="Shuffle")
+    minc = maxc
+    maxc += len(FlipZ)
+    plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],c="Yellow",label="Flip")
     
-    #T-SNE    
+    minc = maxc
+    maxc += len(OtherZ)
+    plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],c="Purple",label="OXray")
+    
+    
+    plt.legend()
+    fig.savefig("%s/images/%s_TSNE_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    
+    #AUC
+    AllDiscSc = [ShufDiscSc,FlipDiscSc,MNISTDiscSc,OtherDiscSc]
+    AllRecErr = [ShufRecErr,FlipRecErr,MNISTRecErr,OtherRecErr]
+    AllZ = [ShufZ,FlipZ,MNISTZ,OtherZ]
+    Name = ["Shuffle","Flip","MNIST","OXray"]
+    
+    for (d,r,z,n) in zip(AllDiscSc,AllRecErr,AllZ,Name):
+        yd = RealDiscSc + d
+        pred = [1]*len(RealDiscSc)+[0]*len(d)
+        fpr, tpr, thresholds = metrics.roc_curve(pred,yd, pos_label=1)
+        auc = metrics.auc(fpr, tpr)
+        print("%10s %12s %4.2f" % ("Disc",n,auc))
+        
+        yr = RealRecErr + r
+        fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(yr), pos_label=1)
+        auc = metrics.auc(fpr, tpr)
+        print("%10s %12s %4.2f" % ("RecL",n,auc))
+        
+        yc = stats.zscore(yd) - stats.zscore(yr)
+        fpr, tpr, thresholds = metrics.roc_curve(pred,yc, pos_label=1)
+        auc = metrics.auc(fpr, tpr)
+        print("%10s %12s %4.2f" % ("Combine",n,auc))
+        
+        ydis = list(np.sum(np.power(RealZ,2),axis=1)) + list(np.sum(np.power(z,2),axis=1))
+        
+        fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(ydis), pos_label=1)
+        auc = metrics.auc(fpr, tpr)
+        print("%10s %12s %4.2f" % ("Distance",n,auc))
+    #Print some distribution
+    AllDiscSc += [RealDiscSc]
+    AllRecErr += [RealRecErr]
+    AllZ += [RealZ]
+    Name += ["Chest X-ray"]
+    
+    for (ds,tn) in zip([AllDiscSc,AllRecErr,AllZ],["Discriminator","RecLoss","Distance"]):
+      fig = plt.figure()
+      for (d,n) in zip(ds,Name):
+          #print(np.shape(d))
+          if (len(np.shape(d)) > 1):
+              d = np.sum(np.power(d,2),axis=1)
+          plt.hist(d,label=n, density=True,histtype="step",bins=20)
+      plt.xlabel(tn)
+      plt.legend()
+      fig.savefig("%s/images/%s_Dist%s_epoch_%d.png" % (ExpDir,opt.name,tn,tosave))
+    
+    if opt.eval == True:
+        break
         
                    
                    
