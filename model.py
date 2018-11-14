@@ -58,8 +58,8 @@ class myDenseNet(nn.Module):
 
         out = F.relu(x, inplace=True)
         activations.append(out)
-        # out = F.avg_pool2d(out, kernel_size=7, stride=1)
-        out = F.max_pool2d(out, kernel_size=14, stride=1)
+        out = F.avg_pool2d(out, kernel_size=7, stride=1)
+        # out = F.max_pool2d(out, kernel_size=14, stride=1)
         out = out.view(x.size(0), -1)
         out = self.classifier(out)
         activations.append(out)
