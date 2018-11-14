@@ -29,14 +29,15 @@ parser.add_argument('--checkpoint', type=int, default=-3, help='Checkpoint epoch
 parser.add_argument('--make-check',type = int, default =1,help="When to make checkpoint")
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 parser.add_argument('--eval', help="No Training",action='store_true')
+parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 
 opt = parser.parse_args()
 print(opt)
 
-Epoch = opt.epoch
+Epoch = opt.epoch #Number of Epoch
 LS = opt.LS #Latent Space Size
-batch_size = opt.batch_size
-ColorsNumber = 1
+batch_size = opt.batch_size #Batch Size
+ColorsNumber = 1 #Number of color (always 1 for x-ray)
 
 lr = opt.lr
 b1 = opt.beta1
@@ -104,8 +105,7 @@ if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/images"):
 
 #Load data
 # Transformations
-inputsize = [224, 224]
-inputsize = [32,32]
+inputsize = [opt.inputsize,opt.inputsize]
 data_transforms = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize(inputsize),
@@ -195,7 +195,7 @@ MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=batch_si
 #Other Xray
 OtherXRayDir = "/data/lisa/data/MURA-v1.1/"
 OtherXRay = OtherXrayDataset("./OtherXray/", transform=data_transforms)
-otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=batch_size)
+otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=10)
 #Loss function
 criterion = nn.BCELoss()
 for epoch in range(Epoch):
@@ -324,6 +324,7 @@ for epoch in range(Epoch):
     RealDiscSc = []
     RealRecErr = []
     RealZ = []
+    RealX = []
     
     #Shuffle
     ShufDiscSc = []
@@ -342,7 +343,7 @@ for epoch in range(Epoch):
         RealDiscSc += DiscSc
         RealRecErr += RecErr
         RealZ += Z
-        
+        RealX += list(ConstantX.detach().numpy())
         
         #Shuffle X-ray image
         XShuffle = np.copy(ConstantX.reshape(ConstantX.shape[0],ConstantX.shape[-1]*ConstantX.shape[-1]).detach().numpy())
@@ -366,6 +367,28 @@ for epoch in range(Epoch):
         FlipZ += Z
         
         toprint = False
+    
+    #Test to print highest and lowest reconstruct error
+    fig = plt.figure(figsize=(8,8))
+    c = 0
+    for ind in np.argsort(RealRecErr)[0:9]:
+        c +=1
+        plt.subplot(3,3,c)
+        plt.imshow(RealX[ind][0],cmap="gray")
+        plt.title("RecLoss=%.2f" % (RealRecErr[ind]))
+        plt.axis("off")
+    fig.savefig("%s/images/%s_LowError_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    
+    fig = plt.figure(figsize=(8,8))
+    c = 0
+    for ind in np.argsort(RealRecErr)[::-1][0:9]:
+        c +=1
+        plt.subplot(3,3,c)
+        plt.imshow(RealX[ind][0],cmap="gray")
+        plt.title("RecLoss=%.2f" % (RealRecErr[ind]))
+        plt.axis("off")
+    fig.savefig("%s/images/%s_HighError_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    
         
     #Reconstruct MNIST
     toprint = True
@@ -388,7 +411,7 @@ for epoch in range(Epoch):
     OtherDiscSc = []
     OtherRecErr = []
     OtherZ = []
-
+    OtherX = []
     for oxray in otherxray:
         Xnorm = oxray *2.0 - 1.0
         if torch.cuda.is_available():
@@ -397,9 +420,21 @@ for epoch in range(Epoch):
         OtherDiscSc += DiscSc
         OtherRecErr += RecErr
         OtherZ += Z
-        if len(MNISTDiscSc) >= len(RealDiscSc):
+        OtherX += list(Xnorm.detach().numpy())
+        if len(OtherDiscSc) >= len(RealDiscSc):
             break
         toprint = False
+    
+        #Test to print highest and lowest reconstruct error
+    fig = plt.figure(figsize=(8,8))
+    c = 0
+    for ind in np.argsort(OtherRecErr)[0:9]:
+        c +=1
+        plt.subplot(3,3,c)
+        plt.imshow(OtherX[ind][0],cmap="gray")
+        plt.title("RecLoss=%.2f" % (OtherRecErr[ind]))
+        plt.axis("off")
+    fig.savefig("%s/images/%s_OXrayLowError_epoch_%d.png" % (ExpDir,opt.name,tosave))
     
     tsne = manifold.TSNE(n_components=2)
     Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ,ShufZ,FlipZ,OtherZ)))
