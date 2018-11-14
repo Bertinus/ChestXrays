@@ -4,6 +4,7 @@ from ALI_Out import *
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
+from torch.autograd import Variable
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ from matplotlib.colors import ListedColormap
 from sklearn import manifold
 from sklearn import metrics
 from scipy import stats
+from AliMisc import *
 import argparse
 
 
@@ -28,7 +30,7 @@ parser.add_argument('--name', type=str, default="default", help='Experiment name
 parser.add_argument('--checkpoint', type=int, default=-3, help='Checkpoint epoch to load')
 parser.add_argument('--make-check',type = int, default =1,help="When to make checkpoint")
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
-parser.add_argument('--eval', help="No Training",action='store_true')
+parser.add_argument('--eval', help="No Training",action='store_true',default = False)
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 
 opt = parser.parse_args()
@@ -43,65 +45,13 @@ lr = opt.lr
 b1 = opt.beta1
 b2 = opt.beta2
 
-#Directory with all model
-ModelDir = "./model/"
-if os.path.exists("/data/milatmp1/frappivi/ALI_model"):
-    ModelDir = "/data/milatmp1/frappivi/ALI_model/"
-    
-if opt.wrkdir != "NA":
-    if not os.path.exists(opt.wrkdir):
-        os.makedirs(opt.wrkdir)
-    ModelDir = opt.wrkdir
-else:
-    print("No --wrkdir", opt.wrkdir)
-    
-    
-ExpDir = ModelDir+opt.name
-if not os.path.exists(ExpDir):
-    os.makedirs(ExpDir)
-    os.makedirs(ExpDir+"/models")
-    os.makedirs(ExpDir+"/images")
-    
-    
-    
-print("Wrkdir = %s" % (ExpDir))
+#Create all the folders to save stuff
+ExpDir = CreateFolder(opt.wrkdir,opt.name)
 
-
-
-#Encoder param
-EncKernel = [5,4,4,4,4,1,1]
-EncStride = [1,2,1,2,1,1,1]
-EncDepth = [32,64,128,256,512,512,LS]
-
-#Generator param
-GenKernel = [4,4,4,4,5,1,1]
-GenStride = [1,2,1,2,1,1,1]
-GenDepth = [256,128,64,32,32,32,ColorsNumber]
-
-#Discriminator X param
-DxKernel = [5,4,4,4,4]
-DxStride = [1,2,1,2,1]
-DxDepth = [32,64,128,256,512]
-
-#Discriminator Z param
-DzKernel = [1,1]
-DzStride = [1,1]
-DzDepth = [512,512]
-
-#Concat Discriminator param
-DxzKernel = [1,1,1]
-DxzStride = [1,1,1]
-DxzDepth = [1024,1024,1]
-
-
-
-
-#Image Dir
+#ChestXray Image Dir
 datadir = "./images/"
 if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/images"):
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images/"
-
-
 
 #Load data
 # Transformations
@@ -109,8 +59,6 @@ inputsize = [opt.inputsize,opt.inputsize]
 data_transforms = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize(inputsize),
-#    transforms.RandomHorizontalFlip(p=1.1),
-#    transforms.RandomVerticalFlip(p=1.1),
     transforms.ToTensor(),
 ])
 
@@ -118,7 +66,7 @@ data_transforms = transforms.Compose([
 dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
 
 DataLen = len(dataset)
-test_size = 400
+test_size = 10
 train_size = DataLen-test_size
 
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
@@ -126,66 +74,6 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size
 dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
 ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
 print("Dataset Len = %d" % (DataLen))
-
-#Create Model
-
-DisX = DiscriminatorX(KS=DxKernel,ST=DxStride,DP=DxDepth)
-DisZ = DiscriminatorZ(KS=DzKernel,ST=DzStride,DP=DzDepth,LS=LS)
-DisXZ = DiscriminatorXZ(KS=DxzKernel,ST=DxzStride,DP=DxzDepth)
-
-GenZ = Encoder(KS=EncKernel,ST=EncStride,DP=EncDepth,LS=LS)
-GenX = Generator(latent_size=LS,KS=GenKernel,ST=GenStride,DP=GenDepth)
-
-#Check checkpoint to use
-if opt.checkpoint == -2:
-    #Find latest
-    MaxCk = 0
-    for fck in glob.glob('{0}/models/{1}_DisXZ_epoch_*.pth'.format(ExpDir,opt.name)):
-        nck = fck.split("_")[-1].split(".")[0]
-        if int(nck) > MaxCk:MaxCk = int(nck)
-    opt.checkpoint = MaxCk
-    print("I found this last checkpoint %d" % (opt.checkpoint))
-
-#Check if checkpoint exist
-if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint)):
-    print("Checkpoint %d exist, will load param and start training from there" % (opt.checkpoint))
-    DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
-    DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
-    DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
-    
-    GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
-    GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, opt.checkpoint),map_location={'cuda:0': 'cpu'}))
-    print("Done loading")
-
-if torch.cuda.is_available():
-    print("cuda is available")
-    DisX = DisX.cuda()
-    DisZ = DisZ.cuda()
-    DisXZ = DisXZ.cuda()
-
-    GenZ = GenZ.cuda()
-    GenX = GenX.cuda()
-
-#Write a bunch of param about training run
-
-
-
-#Optimiser
-optimizerG = optim.Adam([{'params' : GenX.parameters()},
-                         {'params' : GenZ.parameters()}], lr=lr, betas=(b1,b2))
-
-optimizerD = optim.Adam([{'params' : DisZ.parameters()},{'params': DisX.parameters()},
-                         {'params' : DisXZ.parameters()}], lr=lr, betas=(b1,b2))
-
-DiscriminatorLoss = []
-
-from torch.autograd import Variable
-
-#Keep same random seed for image testing
-ConstantZ = torch.randn(9,LS,1,1)
-if torch.cuda.is_available():
-    ConstantZ = ConstantZ.cuda()
-
 
 #MNIST
 MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
@@ -195,9 +83,34 @@ MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=batch_si
 #Other Xray
 OtherXRayDir = "/data/lisa/data/MURA-v1.1/"
 OtherXRay = OtherXrayDataset("./OtherXray/", transform=data_transforms)
-otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=10)
+otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=batch_size)
+
+#Keep same random seed for image testing
+ConstantZ = torch.randn(9,LS,1,1)
+if torch.cuda.is_available():
+    ConstantZ = ConstantZ.cuda()
+
+#GenModel
+DisX,DisZ,DisXZ,GenZ,GenX = GenModel(opt.inputsize,LS,opt.checkpoint,ExpDir,opt.name,ColorsNumber=ColorsNumber)
+
+
+#Write a bunch of param about training run
+#TO DO
+
+
+#Optimiser
+optimizerG = optim.Adam([{'params' : GenX.parameters()},
+                         {'params' : GenZ.parameters()}], lr=lr, betas=(b1,b2))
+
+optimizerD = optim.Adam([{'params' : DisZ.parameters()},{'params': DisX.parameters()},
+                         {'params' : DisXZ.parameters()}], lr=lr, betas=(b1,b2))
+
 #Loss function
 criterion = nn.BCELoss()
+DiscriminatorLoss = []
+
+
+#Training loop!
 for epoch in range(Epoch):
     #Set to train
     GenX.train()
@@ -206,10 +119,14 @@ for epoch in range(Epoch):
     DisZ.train()
     DisXZ.train()
     
+    #What epoch to start from
     if epoch <= opt.checkpoint:
         continue
+    
+    #Counter per Epoch
     c = 0
     for dataiter in dataloader:
+        #If only evaluating don't train!
         if opt.eval == True:
             break
         #Get Data
@@ -217,11 +134,13 @@ for epoch in range(Epoch):
         #Get Batch Size
         BS = Xnorm.shape[0]
         #Ignore weirdly small batchsize
-        if BS < batch_size/2.0:
-            continue
+        #if BS < batch_size/10.0:
+        #    continue
         
+        #Generate Random latent variable
         FakeZ = torch.randn(BS,LS,1,1)
-        #To cuda
+        
+        #Stuff to cuda if cuda
         if torch.cuda.is_available():
             Xnorm = Xnorm.cuda()
             FakeZ = FakeZ.cuda()
@@ -229,7 +148,6 @@ for epoch in range(Epoch):
         
         
         #Generate Fake data from random Latent
-        
         FakeX = GenX(FakeZ)
         
         #Generate Latent from Real
@@ -241,9 +159,8 @@ for epoch in range(Epoch):
         PredReal  = DisXZ(RealCat)
         PredFalse = DisXZ(FakeCat)
         
-        
         #Gen fake and true label
-        TrueLabel = Variable(torch.ones(BS)-0.1)
+        TrueLabel = Variable(torch.ones(BS)-0.1) #-0.1 is a trick from the internet
         FakeLabel = Variable(torch.zeros(BS))
         if torch.cuda.is_available():
             TrueLabel = TrueLabel.cuda()
@@ -268,21 +185,22 @@ for epoch in range(Epoch):
         DiscriminatorLoss.append(loss_d.cpu().detach().numpy()+0)
         c += BS
         print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f" % (epoch,c,DataLen,c/float(DataLen)*100,DiscriminatorLoss[-1]))
-        
     tosave = -1
+    tosaveint = -1
     if epoch % opt.make_check == 0:
-        tosave = epoch    
+        tosave = "%06d" % (epoch)
+        tosaveint = epoch
     # do checkpointing
     torch.save(GenX.state_dict(),
-               '{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               '{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
     torch.save(GenZ.state_dict(),
-               '{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               '{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
     torch.save(DisX.state_dict(),
-               '{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               '{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
     torch.save(DisZ.state_dict(),
-               '{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               '{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
     torch.save(DisXZ.state_dict(),
-               '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosave))
+               '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
                
                
     #Print some image
@@ -295,6 +213,8 @@ for epoch in range(Epoch):
     DisX.eval()
     DisZ.eval()
     DisXZ.eval()
+    
+    
     
     #Print Fake
     with torch.no_grad():
@@ -317,7 +237,7 @@ for epoch in range(Epoch):
         plt.imshow(FakeData[i][0],cmap="gray")
         plt.title("Disc=%.2f" % (PredFalse[i]))
         plt.axis("off")
-    fig.savefig("%s/images/%s_Gen_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     #Reconstruct real
     toprint = True
@@ -375,9 +295,9 @@ for epoch in range(Epoch):
         c +=1
         plt.subplot(3,3,c)
         plt.imshow(RealX[ind][0],cmap="gray")
-        plt.title("RecLoss=%.2f" % (RealRecErr[ind]))
+        plt.title("Dsc=%.2f RL=%.2f" % (RealDiscSc[ind],RealRecErr[ind]))
         plt.axis("off")
-    fig.savefig("%s/images/%s_LowError_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_LowError_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     fig = plt.figure(figsize=(8,8))
     c = 0
@@ -385,9 +305,9 @@ for epoch in range(Epoch):
         c +=1
         plt.subplot(3,3,c)
         plt.imshow(RealX[ind][0],cmap="gray")
-        plt.title("RecLoss=%.2f" % (RealRecErr[ind]))
+        plt.title("Dsc=%.2f RL=%.2f" % (RealDiscSc[ind],RealRecErr[ind]))
         plt.axis("off")
-    fig.savefig("%s/images/%s_HighError_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_HighError_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
         
     #Reconstruct MNIST
@@ -434,7 +354,7 @@ for epoch in range(Epoch):
         plt.imshow(OtherX[ind][0],cmap="gray")
         plt.title("RecLoss=%.2f" % (OtherRecErr[ind]))
         plt.axis("off")
-    fig.savefig("%s/images/%s_OXrayLowError_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_OXrayLowError_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     tsne = manifold.TSNE(n_components=2)
     Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ,ShufZ,FlipZ,OtherZ)))
@@ -458,7 +378,7 @@ for epoch in range(Epoch):
     
     
     plt.legend()
-    fig.savefig("%s/images/%s_TSNE_epoch_%d.png" % (ExpDir,opt.name,tosave))
+    fig.savefig("%s/images/%s_TSNE_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     #AUC
     AllDiscSc = [ShufDiscSc,FlipDiscSc,MNISTDiscSc,OtherDiscSc]
@@ -503,7 +423,7 @@ for epoch in range(Epoch):
           plt.hist(d,label=n, density=True,histtype="step",bins=20)
       plt.xlabel(tn)
       plt.legend()
-      fig.savefig("%s/images/%s_Dist%s_epoch_%d.png" % (ExpDir,opt.name,tn,tosave))
+      fig.savefig("%s/images/%s_Dist%s_epoch_%s.png" % (ExpDir,opt.name,tn,tosave))
     
     if opt.eval == True:
         break

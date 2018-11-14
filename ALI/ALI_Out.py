@@ -75,7 +75,7 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
             plt.imshow(DiffX[i][0],cmap=AlphaRed,vmin=0, vmax=2)
             plt.axis("off")
         #print("Saving file")   
-        fig.savefig("%s/images/%s_%s_epoch_%d.png" % (ExpDir,Name,ImageType,tosave))
+        fig.savefig("%s/images/%s_%s_epoch_%s.png" % (ExpDir,Name,ImageType,tosave))
         plt.close('all')
         
     RealZ.resize((RealZ.shape[:2]))

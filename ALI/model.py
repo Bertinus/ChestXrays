@@ -1,7 +1,108 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import glob as glob
+import os
 
+def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
+    #Encoder param
+    EncKernel = [5,4,4,4,4,1,1]
+    EncStride = [1,2,1,2,1,1,1]
+    EncDepth = [32,64,128,256,512,512,LS]
+
+    #Generator param
+    GenKernel = [4,4,4,4,5,1,1]
+    GenStride = [1,2,1,2,1,1,1]
+    GenDepth = [256,128,64,32,32,32,ColorsNumber]
+
+    #Discriminator X param
+    DxKernel = [5,4,4,4,4]
+    DxStride = [1,2,1,2,1]
+    DxDepth = [32,64,128,256,512]
+
+    #Discriminator Z param
+    DzKernel = [1,1]
+    DzStride = [1,1]
+    DzDepth = [512,512]
+
+    #Concat Discriminator param
+    DxzKernel = [1,1,1]
+    DxzStride = [1,1,1]
+    DxzDepth = [1024,1024,1]
+    
+    if size == 64:
+        #Generator param
+        EncKernel = [2,7,5,7,4,1]
+        EncStride = [1,2,2,2,1,1]
+        EncDepth = [64,128,256,512,512,LS]
+
+        #Generator param
+        GenKernel = [4,7,5,7,2,1]
+        GenStride = [1,2,2,2,1,1]
+        GenDepth = [256,128,64,32,32,32,ColorsNumber]
+
+        #Discriminator X param
+        DxKernel = [2,7,5,7,4]
+        DxStride = [1,2,2,2,1]
+        DxDepth = [64,128,256,256,512]
+
+        #Discriminator Z param
+        DzKernel = [1,1]
+        DzStride = [1,1]
+        DzDepth = [512,512]
+
+        #Concat Discriminator param
+        DxzKernel = [1,1,1]
+        DxzStride = [1,1,1]
+        DxzDepth = [2048,2048,1]
+    
+    
+    #Create Model
+
+    DisX = DiscriminatorX(KS=DxKernel,ST=DxStride,DP=DxDepth)
+    DisZ = DiscriminatorZ(KS=DzKernel,ST=DzStride,DP=DzDepth,LS=LS)
+    DisXZ = DiscriminatorXZ(KS=DxzKernel,ST=DxzStride,DP=DxzDepth)
+
+    GenZ = Encoder(KS=EncKernel,ST=EncStride,DP=EncDepth,LS=LS)
+    GenX = Generator(latent_size=LS,KS=GenKernel,ST=GenStride,DP=GenDepth)
+    
+    #Check checkpoint to use
+    if CP == -2:
+        #Find latest
+        MaxCk = 0
+        for fck in glob.glob('{0}/models/{1}_DisXZ_epoch_*.pth'.format(ExpDir,name)):
+            nck = fck.split("_")[-1].split(".")[0]
+            if int(nck) > MaxCk:MaxCk = int(nck)
+        CP = MaxCk
+        print("I found this last checkpoint %d" % (CP))
+
+    #Check if checkpoint exist
+    if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP)):
+        print("Checkpoint %d exist, will load param and start training from there" % (CP))
+        DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        
+        GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        print("Done loading")
+
+    if torch.cuda.is_available():
+        print("cuda is available")
+        DisX = DisX.cuda()
+        DisZ = DisZ.cuda()
+        DisXZ = DisXZ.cuda()
+
+        GenZ = GenZ.cuda()
+        GenX = GenX.cuda()                                    
+
+    
+    
+    
+    
+    return(DisX,DisZ,DisXZ,GenZ,GenX)
+    
+    
 
 #Generator model (Gx(z))
 class Generator(nn.Module):

@@ -10,7 +10,6 @@ class OtherXrayDataset(Dataset):
 
         self.datadir = datadir
         self.transform = transform
-        print(datadir+"/*/*/*.png")
         self.ImgFiles = [f.split(datadir)[-1] for f in glob.glob(datadir+"/*/*/*/*.png")]
         if nrows > 0:
             self.ImgFiles = self.ImgFiles[:nrows]
