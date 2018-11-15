@@ -46,7 +46,7 @@ b1 = opt.beta1
 b2 = opt.beta2
 
 #Create all the folders to save stuff
-ExpDir = CreateFolder(opt.wrkdir,opt.name)
+ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
 
 #ChestXray Image Dir
 datadir = "./images/"
@@ -66,9 +66,13 @@ data_transforms = transforms.Compose([
 dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
 
 DataLen = len(dataset)
-test_size = 10
+test_size = int(DataLen*0.2)
+if test_size > 5000:
+    test_size = 5000
+    
+testing_bs = int(test_size/10)
 train_size = DataLen-test_size
-
+print("Test Size = %d Train Size = %d" % (test_size,train_size))
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
 dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
@@ -77,13 +81,13 @@ print("Dataset Len = %d" % (DataLen))
 
 #MNIST
 MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
-MNIST_set = dset.MNIST(root=ExpDir, train=True, transform=MNIST_transform, download=True)
-MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=batch_size,shuffle=False)
+MNIST_set = dset.MNIST(root=ModelDir, train=True, transform=MNIST_transform, download=True)
+MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=testing_bs,shuffle=False)
 
 #Other Xray
-OtherXRayDir = "/data/lisa/data/MURA-v1.1/"
-OtherXRay = OtherXrayDataset("./OtherXray/", transform=data_transforms)
-otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=batch_size)
+OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
+OtherXRay = OtherXrayDataset(OtherXRayDir, transform=data_transforms)
+otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
 
 #Keep same random seed for image testing
 ConstantZ = torch.randn(9,LS,1,1)
@@ -91,7 +95,8 @@ if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
 
 #GenModel
-DisX,DisZ,DisXZ,GenZ,GenX = GenModel(opt.inputsize,LS,opt.checkpoint,ExpDir,opt.name,ColorsNumber=ColorsNumber)
+CP = opt.checkpoint
+DisX,DisZ,DisXZ,GenZ,GenX,CP = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
 
 #Write a bunch of param about training run
@@ -120,11 +125,11 @@ for epoch in range(Epoch):
     DisXZ.train()
     
     #What epoch to start from
-    if epoch <= opt.checkpoint:
+    if epoch <= CP:
         continue
     
     #Counter per Epoch
-    c = 0
+    cpt = 0
     for dataiter in dataloader:
         #If only evaluating don't train!
         if opt.eval == True:
@@ -183,8 +188,8 @@ for epoch in range(Epoch):
     
         #StoreInfo .cpu().numpy()
         DiscriminatorLoss.append(loss_d.cpu().detach().numpy()+0)
-        c += BS
-        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f" % (epoch,c,DataLen,c/float(DataLen)*100,DiscriminatorLoss[-1]))
+        cpt += BS
+        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[-1]))
     tosave = -1
     tosaveint = -1
     if epoch % opt.make_check == 0:
@@ -263,14 +268,21 @@ for epoch in range(Epoch):
         RealDiscSc += DiscSc
         RealRecErr += RecErr
         RealZ += Z
-        RealX += list(ConstantX.detach().numpy())
         
+        #Keep image
+        if torch.cuda.is_available():
+            ConstantX = ConstantX.cpu()
+        RealX += list(ConstantX.detach().numpy())
+
         #Shuffle X-ray image
         XShuffle = np.copy(ConstantX.reshape(ConstantX.shape[0],ConstantX.shape[-1]*ConstantX.shape[-1]).detach().numpy())
         np.random.shuffle(XShuffle.transpose())
         #Back to tensor
         XShuffle = torch.tensor(XShuffle)
         XShuffle = XShuffle.reshape(ConstantX.shape[0],1,ConstantX.shape[-1],ConstantX.shape[-1])
+        
+        if torch.cuda.is_available():
+          XShuffle = XShuffle.cuda()
         DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,XShuffle,ExpDir,opt.name,tosave,ImageType = "Shuffle",Sample = 3,SaveFile=toprint)
         ShufDiscSc += DiscSc
         ShufRecErr += RecErr
@@ -280,11 +292,18 @@ for epoch in range(Epoch):
         XFlip = np.copy(ConstantX.detach().numpy())
         XFlip = XFlip[:,:,range(ConstantX.shape[-1])[::-1],:]
         XFlip = torch.tensor(XFlip)
+
+        if torch.cuda.is_available():
+          XFlip = XFlip.cuda()
+
         DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,XFlip,ExpDir,opt.name,tosave,ImageType = "Flip",Sample = 3,SaveFile=toprint)
         
         FlipDiscSc += DiscSc
         FlipRecErr += RecErr
         FlipZ += Z
+
+        #Keep image
+        RealX += list(ConstantX.detach().numpy())
         
         toprint = False
     
@@ -340,6 +359,9 @@ for epoch in range(Epoch):
         OtherDiscSc += DiscSc
         OtherRecErr += RecErr
         OtherZ += Z
+        if torch.cuda.is_available():
+            Xnorm = Xnorm.cpu()
+
         OtherX += list(Xnorm.detach().numpy())
         if len(OtherDiscSc) >= len(RealDiscSc):
             break
@@ -357,6 +379,11 @@ for epoch in range(Epoch):
     fig.savefig("%s/images/%s_OXrayLowError_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     tsne = manifold.TSNE(n_components=2)
+    #print(np.shape(RealZ))
+    #print(np.shape(MNISTZ))
+    #print(np.shape(ShufZ))
+    #print(np.shape(FlipZ))
+    #print(np.shape(OtherZ))
     Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ,ShufZ,FlipZ,OtherZ)))
     fig = plt.figure()
     minc = 0

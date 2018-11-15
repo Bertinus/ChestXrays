@@ -100,7 +100,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     
     
     
-    return(DisX,DisZ,DisXZ,GenZ,GenX)
+    return(DisX,DisZ,DisXZ,GenZ,GenX,CP)
     
     
 

@@ -24,4 +24,4 @@ def CreateFolder(wrkdir,name):
 
     #This is my working dir    
     print("Wrkdir = %s" % (ExpDir))
-    return(ExpDir)
+    return(ExpDir,ModelDir)
