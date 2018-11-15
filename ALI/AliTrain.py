@@ -32,6 +32,7 @@ parser.add_argument('--make-check',type = int, default =1,help="When to make che
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 parser.add_argument('--eval', help="No Training",action='store_true',default = False)
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
+parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
 
 opt = parser.parse_args()
 print(opt)
@@ -48,54 +49,86 @@ b2 = opt.beta2
 #Create all the folders to save stuff
 ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
 
+datadir = opt.xraydir
 #ChestXray Image Dir
-datadir = "./images/"
-if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/images"):
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images/"
+if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
+    datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
 
 #Load data
-# Transformations
-inputsize = [opt.inputsize,opt.inputsize]
-data_transforms = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.Resize(inputsize),
-    transforms.ToTensor(),
-])
+ImagesInfoDF = ParseXrayCSV(datadir,FileExist=True)
 
-# Initialize dataloader
-dataset = XrayDataset(datadir, transform=data_transforms,nrows=opt.N)
+#Create "training" and "testing" set
 
-DataLen = len(dataset)
-test_size = int(DataLen*0.2)
-if test_size > 5000:
-    test_size = 5000
-    
-testing_bs = int(test_size/10)
-train_size = DataLen-test_size
-print("Test Size = %d Train Size = %d" % (test_size,train_size))
-train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
+def CreateDataset(datadir,TestRatio=0.2):
 
-dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
-ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
-print("Dataset Len = %d" % (DataLen))
+  TestRatio = 0.2
 
-#MNIST
-MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
-MNIST_set = dset.MNIST(root=ModelDir, train=True, transform=MNIST_transform, download=True)
-MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=testing_bs,shuffle=False)
+  UniID = np.unique(ImagesInfoDF["patient"])
+  np.random.shuffle(UniID)
+  test_size = int(len(UniID)*TestRatio+0.5)
+  if test_size > 1000:
+      test_size = 1000
+  train_size = int(len(UniID)-test_size)
 
-#Other Xray
-OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
-OtherXRay = OtherXrayDataset(OtherXRayDir, transform=data_transforms)
-otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
 
-#Keep same random seed for image testing
+  TrainID = UniID[:train_size]
+  TestID = UniID[train_size:]
+
+  TestDF = ImagesInfoDF[ImagesInfoDF["patient"].isin(TestID)].sample(frac=1.0)
+  TrainDF = ImagesInfoDF[ImagesInfoDF["patient"].isin(TrainID)].sample(frac=1.0)
+  if opt.N > -1:
+      TrainDF = TrainDF.head(opt.N)
+  if len(TestDF) > len(TrainDF)/5.0:
+      TestDF = TestDF.head(int(len(TrainDF)/5.0))
+
+  if len(TestDF) > 5000:
+      TestDF = TestDF.head(5000)
+
+
+  # Transformations
+  inputsize = [opt.inputsize,opt.inputsize]
+  data_transforms = transforms.Compose([
+      transforms.ToPILImage(),
+      transforms.Resize(inputsize),
+      transforms.ToTensor(),
+  ])
+
+  # Initialize dataloader
+  train_dataset = XrayDataset(datadir,TrainDF, transform=data_transforms)
+  test_dataset =  XrayDataset(datadir,TestDF, transform=data_transforms)
+  test_size = len(TestDF)
+  train_size = len(TrainDF)    
+  testing_bs = 500
+  if testing_bs > len(TestDF):
+      testing_bs = len(TestDF)
+  print("Test Size = %d Train Size = %d" % (len(TestDF),len(TrainDF)))
+
+  dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
+  ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
+
+  #MNIST
+  MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
+  MNIST_set = dset.MNIST(root=ModelDir, train=True, transform=MNIST_transform, download=True)
+  MNIST_loader = torch.utils.data.DataLoader(dataset=MNIST_set,batch_size=testing_bs,shuffle=False)
+
+  #Other Xray
+  OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
+  OtherXRayDir = "./OtherXray/"
+  OtherXRay = OtherXrayDataset(OtherXRayDir, transform=data_transforms)
+  otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
+
+  #Keep same random seed for image testing
+  
+      
+  return(dataloader,[ConstantImg],["XRayT"])
+
+dataloader,OtherSet,OtherName = CreateDataset(datadir,TestRatio=0.2)
+  
 ConstantZ = torch.randn(9,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
-
 #GenModel
-CP = opt.checkpoint
+CP = opt.checkpoint #Checkpoint to load (-2 for latest one, -1 for last epoch)
 DisX,DisZ,DisXZ,GenZ,GenX,CP = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
 
@@ -379,11 +412,11 @@ for epoch in range(Epoch):
     fig.savefig("%s/images/%s_OXrayLowError_epoch_%s.png" % (ExpDir,opt.name,tosave))
     
     tsne = manifold.TSNE(n_components=2)
-    #print(np.shape(RealZ))
-    #print(np.shape(MNISTZ))
-    #print(np.shape(ShufZ))
-    #print(np.shape(FlipZ))
-    #print(np.shape(OtherZ))
+    print(np.shape(RealZ))
+    print(np.shape(MNISTZ))
+    print(np.shape(ShufZ))
+    print(np.shape(FlipZ))
+    print(np.shape(OtherZ))
     Y = tsne.fit_transform(np.concatenate((RealZ,MNISTZ,ShufZ,FlipZ,OtherZ)))
     fig = plt.figure()
     minc = 0
