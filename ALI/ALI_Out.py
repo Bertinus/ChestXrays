@@ -60,17 +60,17 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
         for i in range(Sample):
             c+= 1
             plt.subplot(Sample,3,c)
-            plt.imshow(ConstantX[i][0],cmap="gray")
+            plt.imshow(ConstantX[i][0],cmap="gray",vmin=-1,vmax=1)
             plt.title("Init Disc=%.2f" % (PredReal[i]))
             plt.axis("off")
             c+= 1
             plt.subplot(Sample,3,c)
-            plt.imshow(RebuildX[i][0],cmap="gray")
+            plt.imshow(RebuildX[i][0],cmap="gray",vmin=-1,vmax=1)
             plt.title("Reconstruct")
             plt.axis("off")
             c+= 1
             plt.subplot(Sample,3,c)
-            plt.imshow(ConstantX[i][0],cmap="gray")
+            plt.imshow(ConstantX[i][0],cmap="gray",vmin=-1,vmax=1)
             plt.title("Rec Error = %.2f" % (np.mean(DiffX[i][0])))
             plt.imshow(DiffX[i][0],cmap=AlphaRed,vmin=0, vmax=2)
             plt.axis("off")
