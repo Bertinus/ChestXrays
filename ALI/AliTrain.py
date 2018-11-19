@@ -24,6 +24,7 @@ parser.add_argument('--LS', type=int, default=128, help='Latent Size')
 parser.add_argument('--batch-size', type=int, default=100, help='Batch Size')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--beta2', type=float, default=1e-3, help='beta2 for adam. default=0.999')
+parser.add_argument('--MaxLoss', type=float, default=999.0, help='MaxLoss Default=999')
 parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for optimizer, default=0.00005')
 parser.add_argument('--N', type=int, default=-1, help='Number of images to load (-1 for all), default=-1')
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
@@ -147,10 +148,12 @@ for epoch in range(Epoch):
         loss_g = criterion(PredFalse.view(-1), TrueLabel) + criterion(PredReal.view(-1), FakeLabel)
 
         #Optimize Discriminator
-        optimizerD.zero_grad()
-        loss_d.backward(retain_graph=True)
-        optimizerD.step()
-    
+        if loss_d < opt.MaxLoss:
+            optimizerD.zero_grad()
+            loss_d.backward(retain_graph=True)
+            optimizerD.step()
+        else:
+            print("Disc is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
         #Optimize Generator
         optimizerG.zero_grad()
         loss_g.backward()
