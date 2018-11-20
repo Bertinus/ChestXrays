@@ -34,15 +34,16 @@ parser.add_argument('--eval', help="No Training",action='store_true',default = F
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
 parser.add_argument('--seed',help="Random Seed",default = 13,type=int)
+parser.add_argument('--verbose',help="Verbose",default = False,action='store_true')
 
 opt = parser.parse_args()
-print(opt)
+
 
 Epoch = opt.epoch #Number of Epoch
 LS = opt.LS #Latent Space Size
 batch_size = opt.batch_size #Batch Size
 ColorsNumber = 1 #Number of color (always 1 for x-ray)
-
+inputsize = opt.inputsize
 lr = opt.lr
 b1 = opt.beta1
 b2 = opt.beta2
@@ -50,13 +51,25 @@ b2 = opt.beta2
 #Create all the folders to save stuff
 ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
 
+#Print Argument
+print("lr=%f" % (lr))
+print("b1=%f" % (b1))
+print("b2=%f" % (b2))
+print("batch_size=%d" % (batch_size))
+print("inputsize=%d" % (inputsize))
+print("seed=%d" % (opt.seed))
+print("name=%s" % (name))
+
+
+
 datadir = opt.xraydir
 #ChestXray Image Dir
 if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
 
 
-
+if opt.verbose:
+    print("Loading dataset....")
 #Create all the dataset (training and the testing)
 dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed)
 
@@ -65,14 +78,16 @@ ConstantZ = torch.randn(9,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
 #GenModel
+if opt.verbose:
+    print("Loading Models....")
 CP = opt.checkpoint #Checkpoint to load (-2 for latest one, -1 for last epoch)
 DisX,DisZ,DisXZ,GenZ,GenX,CP = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
 
-#Write a bunch of param about training run
-#TO DO
 
 
+
+sys.exit()
 #Optimiser
 optimizerG = optim.Adam([{'params' : GenX.parameters()},
                          {'params' : GenZ.parameters()}], lr=lr, betas=(b1,b2))
@@ -84,7 +99,8 @@ optimizerD = optim.Adam([{'params' : DisZ.parameters()},{'params': DisX.paramete
 criterion = nn.BCELoss()
 DiscriminatorLoss = []
 
-
+if opt.verbose:
+    print("Starting Training")
 #Training loop!
 for epoch in range(Epoch):
     #Set to train
