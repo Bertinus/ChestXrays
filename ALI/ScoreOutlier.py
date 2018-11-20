@@ -89,9 +89,13 @@ GenX = GenX.eval()
 
 Count = 0
 c = 0
+InitLoadTime = time.time()
 InitTime = time.time()
 for Xi,path in dataloader:
     itime = time.time()
+    
+    print("Loading Time = %.2f" % ((itime - InitLoadTime) / 60.0))
+    
     Xn = Xi*2.0 - 1
     if torch.cuda.is_available():
         Xn = Xn.cuda()
@@ -109,6 +113,7 @@ for Xi,path in dataloader:
         ErrDF.columns = ["name","RecLoss"]
         ErrDF.to_csv(ExpDir+"/RecLoss.csv")
         c = 0
+    InitLoadTime = time.time()
 ErrDF = pd.DataFrame([AllPath,AllRecL]).transpose()
 ErrDF.columns = ["name","RecLoss"]
 ErrDF.to_csv(ExpDir+"/RecLoss.csv")
