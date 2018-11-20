@@ -13,6 +13,7 @@ from sklearn import manifold
 from sklearn import metrics
 from scipy import stats
 from AliMisc import *
+import time
 import argparse
 
 
@@ -72,8 +73,9 @@ def RecLoss(GenX,GenZ,X):
     GenX.eval()
     GenZ.eval()
     Xr = GenX(GenZ(X))
-    
     DiffX = Xr - X
+    if torch.cuda.is_available():
+        Xn = Xn.cpu()
     DiffX = DiffX.detach().numpy()
     DiffX = np.power(DiffX,2)
     RecLoss = [np.sqrt(np.mean(x)) for x in DiffX]
@@ -82,15 +84,31 @@ def RecLoss(GenX,GenZ,X):
 
 AllRecL = []
 AllPath = []
+GenZ = GenZ.eval()
+GenX = GenX.eval()
+
+Count = 0
+c = 0
+InitTime = time.time()
 for Xi,path in dataloader:
+    itime = time.time()
     Xn = Xi*2.0 - 1
+    if torch.cuda.is_available():
+        Xn = Xn.cuda()
     Rl = RecLoss(GenX,GenZ,Xn)
     AllRecL += Rl
     AllPath += list([p.split("/")[-1] for p in path[0]])
-
+    Count += len(Rl)
+    c += len(Rl)
+    endtime = time.time()
+    TimeLeft = (endtime-InitTime)/float(Count)*float(len(ImagesInfoDF)-Count) / 60.0
+    print("%8d/%8d Time=%.4f TimeIm=%.6f MinuteLeft = %.2f" % 
+        (Count,len(ImagesInfoDF),(endtime-itime),(endtime-itime) / float(len(Rl)),TimeLeft))
+    if c > 1000:
+        ErrDF = pd.DataFrame([AllPath,AllRecL]).transpose()
+        ErrDF.columns = ["name","RecLoss"]
+        ErrDF.to_csv(ExpDir+"/RecLoss.csv")
+        c = 0
 ErrDF = pd.DataFrame([AllPath,AllRecL]).transpose()
 ErrDF.columns = ["name","RecLoss"]
-
-print(len(ErrDF))
-
 ErrDF.to_csv(ExpDir+"/RecLoss.csv")
