@@ -60,8 +60,8 @@ AllPath = []
 if os.path.isfile(ExpDir+"/RecLoss.csv"):
     ErrDF = pd.read_csv(ExpDir+"/RecLoss.csv")
     ImagesInfoDF = ImagesInfoDF[ImagesInfoDF["name"].isin(ErrDF["name"]) == False]
-    AllPath = ErrDF["name"]
-    AllRecL = ErrDF["RecLoss"]
+    AllPath = list(ErrDF["name"])
+    AllRecL = list(ErrDF["RecLoss"])
     print("Removed already done",len(ImagesInfoDF))
 
 
