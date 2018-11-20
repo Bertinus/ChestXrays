@@ -176,6 +176,7 @@ class XrayDataset(Dataset):
         return len(self.ImgFiles)
 
     def __getitem__(self, idx):
+        PathToFile = [os.path.join(self.datadir,"images/", self.ImgFiles[idx])]
         im = misc.imread(os.path.join(self.datadir,"images/", self.ImgFiles[idx]))
         if len(im.shape) > 2:
             im = im[:, :, 0]
@@ -184,7 +185,7 @@ class XrayDataset(Dataset):
         # Tranform
         if self.transform:
             im = self.transform(im)
-        return im
+        return im,PathToFile
         
         
 class Iterator:
