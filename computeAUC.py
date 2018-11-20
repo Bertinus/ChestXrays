@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import ShuffleSplit
 import matplotlib.pyplot as plt
+import pandas as pd
 
 if __name__ == "__main__":
 
@@ -24,14 +25,14 @@ if __name__ == "__main__":
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_178800.pth"
+    saved_model_path = "Models/model_178800.pth"
     saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_test"
 
     """
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_3/model_37200.pth"
+    saved_model_path = "Models/model_178800.pth"  # "/data/milatmp1/bertinpa/Logs/model_3/model_37200.pth"
     saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_37200"
 
     inputsize = [224, 224]  # Image Size fed to the network
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     ####################################################################################################################
 
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=False)
+    all_data = pd.read_csv(val_csvpath)
 
     if n_batch == -1:
         n_batch = len(val_dataloader)
@@ -52,6 +54,7 @@ if __name__ == "__main__":
     # Initialize result arrays
     all_outputs = np.zeros((n_batch * batch_size, 14))
     all_labels = np.zeros((n_batch * batch_size, 14))
+    all_idx = np.zeros((n_batch * batch_size, 1))
 
     # Model
     if torch.cuda.is_available():
@@ -66,7 +69,7 @@ if __name__ == "__main__":
     cpt = 0
     densenet.eval()
 
-    for data, label in val_dataloader:
+    for data, label, idx in val_dataloader:
 
         if torch.cuda.is_available():
             data = data.cuda()
@@ -77,13 +80,21 @@ if __name__ == "__main__":
         if torch.cuda.is_available():
             all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().cpu().numpy()
             all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().cpu().numpy()
+            all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().cpu().numpy()[:, None]
         else:
             all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().numpy()
             all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
+            all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().numpy()[:, None]
 
         cpt += 1
         if cpt == n_batch:
             break
+
+    # Save predictions as a csv
+    all_names = np.array([all_data['Image Index'][idx].values for idx in all_idx])
+    csv_array = pd.DataFrame(np.concatenate((all_names, all_outputs, all_labels), axis=1))
+    column_names = ["name"] + ["prediction_"+str(i) for i in range(14)] + ["label_"+str(i) for i in range(14)]
+    csv_array.to_csv("model_predictions.csv", header=column_names, index=False)
 
     ####################################################################################################################
     # Compute AUC

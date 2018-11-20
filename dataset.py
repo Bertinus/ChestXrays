@@ -39,7 +39,7 @@ class XrayDataset(Dataset):
         if self.transform:
             im = self.transform(im)
 
-        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32)
+        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32), idx
 
 
 def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False, flip=True):

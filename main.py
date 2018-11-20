@@ -147,7 +147,7 @@ if __name__ == "__main__":
         scheduler.step()
 
         # Training
-        for data, label in train_dataloader:
+        for data, label, idx in train_dataloader:
 
             if torch.cuda.is_available():
                 data = data.cuda()
@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
                 for _ in range(batch_per_val_session):
 
-                    data, label = val_iterator.next()
+                    data, label, idx = val_iterator.next()
 
                     if torch.cuda.is_available():
                         data = data.cuda()
