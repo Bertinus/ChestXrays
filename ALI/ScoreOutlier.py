@@ -75,7 +75,7 @@ def RecLoss(GenX,GenZ,X):
     Xr = GenX(GenZ(X))
     DiffX = Xr - X
     if torch.cuda.is_available():
-        Xn = Xn.cpu()
+        DiffX = DiffX.cpu()
     DiffX = DiffX.detach().numpy()
     DiffX = np.power(DiffX,2)
     RecLoss = [np.sqrt(np.mean(x)) for x in DiffX]
