@@ -53,6 +53,7 @@ if not os.path.isfile(ExpDir+"/AllImagesInfo.csv"):
     ImagesInfoDF.to_csv(ExpDir+"/AllImagesInfo.csv")
 ImagesInfoDF = pd.read_csv(ExpDir+"/AllImagesInfo.csv")
 
+    
 
 AllRecL = []
 AllPath = []
@@ -63,7 +64,9 @@ if os.path.isfile(ExpDir+"/RecLoss.csv"):
     AllPath = list(ErrDF["name"])
     AllRecL = list(ErrDF["RecLoss"])
     print("Removed already done",len(ImagesInfoDF))
-
+if os.path.isfile("model_predictions.csv"):
+    ModelPred = pd.read_csv("model_predictions.csv")
+    ImagesInfoDF = ImagesInfoDF[ImagesInfoDF["name"].isin(ModelPred["name"])]
 
 # Transformations
 inputsize = [isize,isize]
