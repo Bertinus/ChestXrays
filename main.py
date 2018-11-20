@@ -82,7 +82,7 @@ if __name__ == "__main__":
     logdir = "/data/milatmp1/bertinpa/Logs/training_3"
 
     # Network
-    inputsize = [448, 448]
+    inputsize = [224, 224]
     dropout = True
     P_drop = 0.  # Original paper : 0.2
 
