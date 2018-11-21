@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import glob as glob
 import os
+import pickle
 
 def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     #Encoder param
@@ -75,7 +76,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
             if int(nck) > MaxCk:MaxCk = int(nck)
         CP = MaxCk
         print("I found this last checkpoint %d" % (CP))
-
+    Diss = dict()
     #Check if checkpoint exist
     if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP)):
         print("Checkpoint %d exist, will load param and start training from there" % (CP))
@@ -85,6 +86,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
         
         GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        Diss = pickle.load(open('{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,name, CP),"rb"))
         print("Done loading")
 
     if torch.cuda.is_available():
@@ -100,7 +102,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     
     
     
-    return(DisX,DisZ,DisXZ,GenZ,GenX,CP)
+    return(DisX,DisZ,DisXZ,GenZ,GenX,CP,Diss)
     
     
 
