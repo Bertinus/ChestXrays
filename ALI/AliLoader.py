@@ -208,7 +208,26 @@ class Iterator:
         return self.iterator.next()
 
 
+class XrayDatasetTensor(Dataset):
 
+    def __init__(self, TensorName,FullDF,Names):
+
+        self.ImgTensor = torch.load(TensorName)
+        df = pd.read_csv(FullDF)
+        self.NameToID = dict()
+        for i in range(len(df["name"])):
+            self.NameToID[df["name"][i]] = i
+        self.Names = Names
+
+    def __len__(self):
+        return len(self.Names)
+
+    def __getitem__(self, idx):
+        ID = self.NameToID[self.Names[idx]]
+        im = self.ImgTensor[ID]
+        PathToFile = self.Names[idx]
+        print(idx,ID,PathToFile)
+        return im,PathToFile
 
 
 

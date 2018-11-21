@@ -253,7 +253,6 @@ for epoch in range(Epoch):
         TRecErr = []
         TZ = []
         TX = []
-        print(n)
         for dataiter,_ in dl:
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
