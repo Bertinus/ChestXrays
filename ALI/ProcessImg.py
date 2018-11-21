@@ -13,10 +13,6 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
-parser.add_argument('--N', type=int, default=-1, help='Number of images to load (-1 for all), default=-1')
-parser.add_argument('--seed', type=int, default=13, help='RandomSeed')
-parser.add_argument('--MaxTest', type=int, default=999999, help='Maximum Test Set size (default 999999)')
-parser.add_argument('--split', type=float, default=0.8, help='Train / Test Split (default=0.8)')
 
 opt = parser.parse_args()
 
@@ -55,7 +51,6 @@ c  = 0
 cpt = 0
 InitTime = time.time()
 for fn in list(ImagesInfoDF["name"].values):
-    break
     im = misc.imread(os.path.join(datadir,"images/", fn))
     if len(im.shape) > 2:
         im = im[:, :, 0]
