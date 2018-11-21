@@ -36,6 +36,7 @@ if not os.path.exists(datadir+"PreProcess/Size"+str(isize)):
     
 #Load data location
 if not os.path.isfile(datadir+"/AllImagesInfo.csv"):
+    print("Creating Dataframe")
     ImagesInfoDF = ParseXrayCSV(datadir,FileExist=True)
     ImagesInfoDF.to_csv(datadir+"/AllImagesInfo.csv")
 ImagesInfoDF = pd.read_csv(datadir+"/AllImagesInfo.csv")
@@ -49,13 +50,12 @@ data_transforms = transforms.Compose([
     transforms.Resize(inputsize),
     transforms.ToTensor(),
 ])
-
+print("Converting")
 ImgTensor = torch.tensor([])
 c  = 0
 cpt = 0
 InitTime = time.time()
 for fn in list(ImagesInfoDF["name"].values):
-    break
     im = misc.imread(os.path.join(datadir,"images/", fn))
     if len(im.shape) > 2:
         im = im[:, :, 0]
@@ -71,59 +71,23 @@ for fn in list(ImagesInfoDF["name"].values):
     #Print some progess
     c += 1
     cpt += 1
-    if cpt > len(ImagesInfoDF)/10.0:
+    if cpt > len(ImagesInfoDF)/1000.0:
+        torch.save(ImgTensor, datadir+"PreProcess/Size"+str(isize)+"/Tensor"+str(isize)+".pt")
+        ImagesInfoDF.to_csv(datadir+"PreProcess/Size"+str(isize)+"/AllImagesInfo.csv")
+
+
         cpt = 0
         Fract = c/float(len(ImagesInfoDF))
         NowTime = time.time()
         Diff = NowTime - InitTime
         Left = Diff / float(c) * float(len(ImagesInfoDF)-c)
-        print("%6d / %6d = %.2f Elaspe Time=%6.2f (min) TimeLeft = %6.2f (min)" % (c,len(ImagesInfoDF),Fract*100.0,Diff/60.0,Left/60.0))
+        SecImg = Diff / float(c)
+        print("%6d / %6d = %.2f SecImg = %.4f Elaspe Time=%6.2f (min) TimeLeft = %6.2f (min)" % (c,len(ImagesInfoDF),Fract*100.0,SecImg,Diff/60.0,Left/60.0))
     #print(ImgTensor.shape,im.shape)
         
-#torch.save(ImgTensor, datadir+"PreProcess/Size"+str(isize)+"/Tensor"+str(isize)+".pt")
-#ImagesInfoDF.to_csv(datadir+"PreProcess/Size"+str(isize)+"/AllImagesInfo.csv")
 
-
-class XrayDatasetTensor(Dataset):
-
-    def __init__(self, TensorName,FullDF,Names):
-
-        self.ImgTensor = torch.load(TensorName)
-        df = pd.read_csv(FullDF)
-        self.NameToID = dict()
-        for i in range(len(df["name"])):
-            self.NameToID[df["name"][i]] = i
-        self.Names = Names
-
-    def __len__(self):
-        return len(self.Names)
-
-    def __getitem__(self, idx):
-        ID = self.NameToID[self.Names[idx]]
-        im = self.ImgTensor[ID]
-        PathToFile = self.Names[idx]
-        print(idx,ID,PathToFile)
-        return im,PathToFile
-testname = list(ImagesInfoDF.tail()["name"])
-print(testname)
-
-
-dat = XrayDatasetTensor(datadir+"PreProcess/Size"+str(isize)+"/Tensor"+str(isize)+".pt",datadir+"PreProcess/Size"+str(isize)+"/AllImagesInfo.csv",testname)
-for i,(img,path) in enumerate(dat):
-    print(i,path)
-
-
-
-
-
-
-
-
-
-
-
-
-
+torch.save(ImgTensor, datadir+"PreProcess/Size"+str(isize)+"/Tensor"+str(isize)+".pt")
+ImagesInfoDF.to_csv(datadir+"PreProcess/Size"+str(isize)+"/AllImagesInfo.csv")
 
 
 
