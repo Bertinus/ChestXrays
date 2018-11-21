@@ -9,76 +9,50 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
 
+import torch
 
 
 
-
-def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13):
+def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000):
   
+  #PreProcess folder
+  PreProDir = datadir+"PreProcess/Size"+str(isize)
+  ImagesInfoDF = pd.read_csv(PreProDir+"/AllImagesInfo.csv")
+
+  #Shuffle the dataset
+  np.random.seed(rseed)
+  ImagesInfoDF = ImagesInfoDF.sample(frac=1.0,random_state=rseed)
+
+  #Keep number of example
+  if N > 0:
+      ImagesInfoDF = ImagesInfoDF.head(N)
+      
+  #Split train and test
+  TestSize = int(len(ImagesInfoDF)*TestRatio+0.5)
+  if TestSize > MaxSize:
+      TestSize = MaxSize
   
-  #Load data
-  if not os.path.isfile(ExpDir+"/AllImagesInfo.csv"):
-      ImagesInfoDF = ParseXrayCSV(datadir,FileExist=True)
-      ImagesInfoDF.to_csv(ExpDir+"/AllImagesInfo.csv")
-  ImagesInfoDF = pd.read_csv(ExpDir+"/AllImagesInfo.csv")
-
-
+  TestDF = ImagesInfoDF.tail(TestSize)
+  TrainDF = ImagesInfoDF.head(len(ImagesInfoDF)-TestSize)
+  print("Train Size = %d Test Size = %d" % (len(TrainDF),len(TestDF)))
   
-  UniID = np.unique(ImagesInfoDF["patient"])
-  np.random.seed(13)
+  train_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainDF["name"]))
+  test_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TestDF["name"]))
 
-  np.random.shuffle(UniID)
-  test_size = int(len(UniID)*TestRatio+0.5)
-  if test_size > 1000:
-      test_size = 1000
-  train_size = int(len(UniID)-test_size)
-
-
-  TrainID = UniID[:train_size]
-  TestID = UniID[train_size:]
-  
-  if not os.path.isfile(ExpDir+"/TrainImagesInfo.csv"):
-  
-      TestDF = ImagesInfoDF[ImagesInfoDF["patient"].isin(TestID)].sample(frac=1.0, random_state=13)
-      TrainDF = ImagesInfoDF[ImagesInfoDF["patient"].isin(TrainID)].sample(frac=1.0, random_state=13)
-      if N > -1:
-          TrainDF = TrainDF.head(N)
-      if len(TestDF) > len(TrainDF)/5.0:
-          TestDF = TestDF.head(int(len(TrainDF)/5.0))
-
-      if len(TestDF) > 5000:
-          TestDF = TestDF.head(5000)
-      TrainDF.to_csv(ExpDir+"/TrainImagesInfo.csv")
-      TestDF.to_csv(ExpDir+"/TestImagesInfo.csv")
-  TrainDF = pd.read_csv(ExpDir+"/TrainImagesInfo.csv")
-  TestDF = pd.read_csv(ExpDir+"/TestImagesInfo.csv")
-
-  # Transformations
-  inputsize = [isize,isize]
-  data_transforms = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.Resize(inputsize),
-      transforms.ToTensor(),
-  ])
-
-  # Initialize dataloader
-  train_dataset = XrayDataset(datadir,TrainDF, transform=data_transforms)
-  test_dataset =  XrayDataset(datadir,TestDF, transform=data_transforms)
-  test_size = len(TestDF)
-  train_size = len(TrainDF)    
-  testing_bs = 500
-  if testing_bs > len(TestDF):
-      testing_bs = len(TestDF)
-  print("Test Size = %d Train Size = %d" % (len(TestDF),len(TrainDF)))
-
-  dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
+  dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size,drop_last=True)
   ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
-
+  testing_bs = 100
   #MNIST
-  MNIST_transform = transforms.Compose([transforms.Resize(inputsize),transforms.ToTensor()])
+  MNIST_transform = transforms.Compose([transforms.Resize(isize),transforms.ToTensor()])
   MNIST_set = dset.MNIST(root=ModelDir, train=True, transform=MNIST_transform, download=True)
   MNIST_loader = DataLoader(dataset=MNIST_set,batch_size=testing_bs,shuffle=False)
-
+  
+  data_transforms = transforms.Compose([
+      transforms.ToPILImage(),
+      transforms.Resize(isize),
+      transforms.ToTensor(),
+  ])
+  
   #Other Xray
   OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
   OtherXRayDir = "./OtherXray/"
@@ -90,7 +64,7 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   
   data_transforms = transforms.Compose([
       transforms.ToPILImage(),
-      transforms.Resize(inputsize),
+      transforms.Resize(isize),
       transforms.RandomVerticalFlip(p=1.0),
       transforms.ToTensor(),
   ])
@@ -99,7 +73,7 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   
   data_transforms = transforms.Compose([
       transforms.ToPILImage(),
-      transforms.Resize(inputsize),
+      transforms.Resize(isize),
       transforms.RandomHorizontalFlip(p=1.0),
       transforms.ToTensor(),
   ])
@@ -108,7 +82,7 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   
   
   
-  return(dataloader,train_size,test_size,[ConstantImg,MNIST_loader,otherxray,hflip,vflip],["XRayT","MNIST","OXray","HFlip","VFlip"])
+  return(dataloader,len(TrainDF),len(TestDF),[ConstantImg,MNIST_loader,otherxray,hflip,vflip],["XRayT","MNIST","OXray","HFlip","VFlip"])
 
 def ParseXrayCSV(datadir,FileExist=False,N=-1):
     lines = [l.rstrip() for l in open(datadir+"Data_Entry_2017.csv")]
@@ -226,7 +200,6 @@ class XrayDatasetTensor(Dataset):
         ID = self.NameToID[self.Names[idx]]
         im = self.ImgTensor[ID]
         PathToFile = self.Names[idx]
-        print(idx,ID,PathToFile)
         return im,PathToFile
 
 
