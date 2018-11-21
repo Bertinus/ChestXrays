@@ -2,6 +2,7 @@ from model import *
 from AliLoader import *
 from ALI_Out import *
 
+import pickle
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
 from torch.autograd import Variable
@@ -82,7 +83,7 @@ if torch.cuda.is_available():
 if opt.verbose:
     print("Loading Models....")
 CP = opt.checkpoint #Checkpoint to load (-2 for latest one, -1 for last epoch)
-DisX,DisZ,DisXZ,GenZ,GenX,CP = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
+DisX,DisZ,DisXZ,GenZ,GenX,CP,DiscriminatorLoss = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
 #Optimiser
 optimizerG = optim.Adam([{'params' : GenX.parameters()},
@@ -93,11 +94,15 @@ optimizerD = optim.Adam([{'params' : DisZ.parameters()},{'params': DisX.paramete
 
 #Loss function
 criterion = nn.BCELoss()
-DiscriminatorLoss = []
+
 
 if opt.verbose:
     print("Starting Training")
 #Training loop!
+TotIt = 0
+if len(DiscriminatorLoss) > 0:
+    TotIt = np.max(list(DiscriminatorLoss.keys()))
+print(TotIt)
 for epoch in range(Epoch):
     #Set to train
     GenX.train()
@@ -112,7 +117,7 @@ for epoch in range(Epoch):
     
     #Counter per Epoch
     cpt = 0
-    
+    cck = 0 #Counter for check point
     
     #Some timer
     InitLoadTime = time.time()
@@ -181,13 +186,14 @@ for epoch in range(Epoch):
         optimizerG.step()
     
         #StoreInfo .cpu().numpy()
-        DiscriminatorLoss.append(loss_d.cpu().detach().numpy()+0)
+        
         cpt += BS
+        TotIt += BS
+        DiscriminatorLoss[TotIt] = loss_d.cpu().detach().numpy()+0
         InitLoadTime = time.time()
         RunTime = InitLoadTime - itime
-        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[-1],LoadingTime,RunTime))
-        
-        
+        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[TotIt],LoadingTime,RunTime))
+     
     tosave = -1
     tosaveint = -1
     if epoch % opt.make_check == 0:
@@ -205,8 +211,9 @@ for epoch in range(Epoch):
                    '{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
         torch.save(DisXZ.state_dict(),
                    '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
+        pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint), "wb" ))
                
-               
+                  
     #Print some image
     
     #Print generated
@@ -242,9 +249,10 @@ for epoch in range(Epoch):
         plt.title("Disc=%.2f" % (PredFalse[i]))
         plt.axis("off")
     fig.savefig("%s/images/%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
-    
+    continue
     AllEvalData = dict()
     for (dl,n) in zip(OtherSet,OtherName):
+        print(n)
         AllEvalData[n] = dict()
         toprint = True
         
@@ -254,6 +262,7 @@ for epoch in range(Epoch):
         TZ = []
         TX = []
         for dataiter,_ in dl:
+            
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
                 ConstantX = ConstantX.cuda()
