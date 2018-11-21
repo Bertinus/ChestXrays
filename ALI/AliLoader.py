@@ -151,7 +151,8 @@ class OtherXrayDataset(Dataset):
         return len(self.ImgFiles)
 
     def __getitem__(self, idx):
-        im = misc.imread(os.path.join(self.datadir, self.ImgFiles[idx]))
+        PathToFile = os.path.join(self.datadir, self.ImgFiles[idx])
+        im = misc.imread(PathToFile)
         if len(im.shape) > 2:
             im = im[:, :, 0]
         #Add color chanel
@@ -159,7 +160,7 @@ class OtherXrayDataset(Dataset):
         # Tranform
         if self.transform:
             im = self.transform(im)
-        return im
+        return im,PathToFile
 
 class XrayDataset(Dataset):
 
@@ -185,6 +186,7 @@ class XrayDataset(Dataset):
         # Tranform
         if self.transform:
             im = self.transform(im)
+
         return im,PathToFile
         
         

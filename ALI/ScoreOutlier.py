@@ -63,10 +63,11 @@ if os.path.isfile(ExpDir+"/RecLoss.csv"):
     ImagesInfoDF = ImagesInfoDF[ImagesInfoDF["name"].isin(ErrDF["name"]) == False]
     AllPath = list(ErrDF["name"])
     AllRecL = list(ErrDF["RecLoss"])
-    print("Removed already done",len(ImagesInfoDF))
+    print("Removed already done, N=",len(ImagesInfoDF))
 if os.path.isfile("model_predictions.csv"):
     ModelPred = pd.read_csv("model_predictions.csv")
     ImagesInfoDF = ImagesInfoDF[ImagesInfoDF["name"].isin(ModelPred["name"])]
+    print("Kept only test set, Left=",len(ImagesInfoDF))
 
 # Transformations
 inputsize = [isize,isize]

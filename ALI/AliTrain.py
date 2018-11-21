@@ -14,7 +14,7 @@ from sklearn import metrics
 from scipy import stats
 from AliMisc import *
 import argparse
-
+import time
 
 
 parser = argparse.ArgumentParser()
@@ -59,7 +59,7 @@ print("b2=%f" % (b2))
 print("batch_size=%d" % (batch_size))
 print("inputsize=%d" % (inputsize))
 print("seed=%d" % (opt.seed))
-print("name=%s" % (name))
+print("name=%s" % (opt.name))
 
 
 
@@ -84,11 +84,6 @@ if opt.verbose:
 CP = opt.checkpoint #Checkpoint to load (-2 for latest one, -1 for last epoch)
 DisX,DisZ,DisXZ,GenZ,GenX,CP = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
-
-
-
-
-sys.exit()
 #Optimiser
 optimizerG = optim.Adam([{'params' : GenX.parameters()},
                          {'params' : GenZ.parameters()}], lr=lr, betas=(b1,b2))
@@ -117,7 +112,17 @@ for epoch in range(Epoch):
     
     #Counter per Epoch
     cpt = 0
-    for dataiter in dataloader:
+    
+    
+    #Some timer
+    InitLoadTime = time.time()
+    InitTime = time.time()
+    
+    for dataiter,_ in dataloader:
+        
+        itime = time.time()
+        LoadingTime = (itime - InitLoadTime)
+    
         #If only evaluating don't train!
         if opt.eval == True:
             break
@@ -178,7 +183,11 @@ for epoch in range(Epoch):
         #StoreInfo .cpu().numpy()
         DiscriminatorLoss.append(loss_d.cpu().detach().numpy()+0)
         cpt += BS
-        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[-1]))
+        InitLoadTime = time.time()
+        RunTime = InitLoadTime - itime
+        print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[-1],LoadingTime,RunTime))
+        
+        
     tosave = -1
     tosaveint = -1
     if epoch % opt.make_check == 0:
@@ -244,9 +253,8 @@ for epoch in range(Epoch):
         TRecErr = []
         TZ = []
         TX = []
-        for dataiter in dl:
-            if n == "MNIST":
-                dataiter = dataiter[0]
+        print(n)
+        for dataiter,_ in dl:
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
                 ConstantX = ConstantX.cuda()
