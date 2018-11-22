@@ -13,7 +13,7 @@ import torch
 
 
 
-def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000):
+def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000,Testing = False):
   
   #PreProcess folder
   PreProDir = datadir+"PreProcess/Size"+str(isize)
@@ -44,13 +44,19 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   TestDF = pd.read_csv(ExpDir+"/TestImagesInfo.csv")
   
   
-  print("Train Size = %d Test Size = %d" % (len(TrainDF),len(TestDF)))
+  
   
   train_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainDF["name"]))
   test_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TestDF["name"]))
-
+  print("Train Size = %d Test Size = %d" % (len(TrainDF),len(TestDF)))
+  
   dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size,drop_last=True)
   ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
+  
+  if Testing == False:
+      return(dataloader,len(TrainDF),len(TestDF),[],[])
+  
+  
   testing_bs = 100
   #MNIST
   MNIST_transform = transforms.Compose([transforms.Resize(isize),transforms.ToTensor()])
@@ -67,7 +73,7 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   OtherXRayDir = "./OtherXray/MURA-v1.1/valid/"
   if os.path.exists("/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"):
       OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
-  OtherXRay = OtherXrayDataset(OtherXRayDir, isize=isize)
+  OtherXRay = OtherXrayDataset(OtherXRayDir, isize=isize,nrows=TestSize)
   print(len(OtherXRay))
   otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
   

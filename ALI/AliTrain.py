@@ -38,6 +38,9 @@ parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
 parser.add_argument('--seed',help="Random Seed",default = 13,type=int)
 parser.add_argument('--verbose',help="Verbose",default = False,action='store_true')
+parser.add_argument('--testing',help="Calculate AUCs on other Dataset",default = False,action='store_true')
+parser.add_argument('--ToPrint', type=int, default=2500, help='When to print generated sample')
+parser.add_argument('--RandomLabel', help="Predicted Label are semi random",default = False,action='store_true')
 
 opt = parser.parse_args()
 
@@ -81,9 +84,10 @@ pickle.dump(Params,open(ExpDir+"/params.pk","wb"))
 if opt.verbose:
     print("Loading dataset....")
 #Create all the dataset (training and the testing)
-dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed)
+dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed,Testing=opt.testing)
 
-#Keep same random seed for image testing  
+#Keep same random seed for image testing
+torch.manual_seed(opt.seed)
 ConstantZ = torch.randn(25,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
@@ -175,6 +179,11 @@ for epoch in range(Epoch):
         #Gen fake and true label
         TrueLabel = Variable(torch.ones(BS)-0.1) #-0.1 is a trick from the internet
         FakeLabel = Variable(torch.zeros(BS))
+        
+        if opt.RandomLabel == True:
+            TrueLabel = (torch.randint(low=70, high=110, size=(1,BS))[0] / 100)
+            FakeLabel = (torch.randint(low=-10, high=30, size=(1,BS))[0] / 100)
+        
         if torch.cuda.is_available():
             TrueLabel = TrueLabel.cuda()
             FakeLabel = FakeLabel.cuda()
@@ -189,9 +198,8 @@ for epoch in range(Epoch):
         loss_d.backward(retain_graph=True)
         optimizerD.step()
         #Optimize Generator
-        
         if loss_d > opt.MaxLoss:
-            print("Gen is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
+            print("Gen is tooooo good:%.2f, No BackProp" % (loss_d.cpu().detach().numpy()+0))
         else:
             optimizerG.zero_grad()
             loss_g.backward()
@@ -207,7 +215,7 @@ for epoch in range(Epoch):
         RunTime = InitLoadTime - itime
         print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[TotIt],LoadingTime,RunTime))
     
-        if cck > 2500:
+        if cck > opt.ToPrint:
             cck = 0
             tosave = "%010d" % (TotIt)
             #Print some image
@@ -247,57 +255,57 @@ for epoch in range(Epoch):
             fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
             plt.close() 
             #Calculate AUCs
-            
-            print("Scoring other DSet")
-            AllEvalData = dict()
-            for (dl,n) in zip(OtherSet,OtherName):
-                AllEvalData[n] = dict()
-                #Store some value
-                TDiscSc = []
-                TRecErr = []
-                TZ = []
-                TX = []
-                Tlab = []
-                for dataiter,lab in dl:
-                    ConstantX = dataiter*2.0-1.0
-                    if torch.cuda.is_available():
-                        ConstantX = ConstantX.cuda()
-                    DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=False)
-                    TDiscSc += DiscSc
-                    TRecErr += RecErr
-                    TZ += Z
-                    if len(TZ) > test_size:
-                        TZ = TZ[:test_size]
-                        TX = TX[:test_size]
-                        TDiscSc = TDiscSc[:test_size]
-                        TRecErr = TRecErr[:test_size]
-                        break
-                AllEvalData[n]["Z"] = TZ
-                AllEvalData[n]["X"] = TX
-                AllEvalData[n]["RecLoss"] = TRecErr
-                AllEvalData[n]["Dis"] = TDiscSc
-                        
-            print("Getting AUCs")
-            AllAUCs[TotIt] = dict()
-            for n in OtherName:
-                if n == "XRayT":
-                    continue
-                tn = "RecLoss"
-                d = AllEvalData[n]["RecLoss"]
-                RealDiscSc = AllEvalData["XRayT"]["RecLoss"]
-                yd = RealDiscSc + d
-                pred = [1]*len(RealDiscSc)+[0]*len(d)
-                fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(yd), pos_label=1)
-                auc = metrics.auc(fpr, tpr)
-                AllAUCs[TotIt][n] = auc
-                #print(n,auc)
-            subdf = pd.DataFrame(AllAUCs).transpose()
-            fig = plt.figure(figsize=(8,8))
-            for n in list(subdf.columns):
-                plt.plot(subdf.index,subdf[n],label=n,marker="o")
-            plt.legend()
-            fig.savefig("%s/images/AUCs_LosRec.png" % (ExpDir))
-            plt.close() 
+            if opt.testing == True:
+                print("Scoring other DSet")
+                AllEvalData = dict()
+                for (dl,n) in zip(OtherSet,OtherName):
+                    AllEvalData[n] = dict()
+                    #Store some value
+                    TDiscSc = []
+                    TRecErr = []
+                    TZ = []
+                    TX = []
+                    Tlab = []
+                    for dataiter,lab in dl:
+                        ConstantX = dataiter*2.0-1.0
+                        if torch.cuda.is_available():
+                            ConstantX = ConstantX.cuda()
+                        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=False)
+                        TDiscSc += DiscSc
+                        TRecErr += RecErr
+                        TZ += Z
+                        if len(TZ) > test_size:
+                            TZ = TZ[:test_size]
+                            TX = TX[:test_size]
+                            TDiscSc = TDiscSc[:test_size]
+                            TRecErr = TRecErr[:test_size]
+                            break
+                    AllEvalData[n]["Z"] = TZ
+                    AllEvalData[n]["X"] = TX
+                    AllEvalData[n]["RecLoss"] = TRecErr
+                    AllEvalData[n]["Dis"] = TDiscSc
+                            
+                print("Getting AUCs")
+                AllAUCs[TotIt] = dict()
+                for n in OtherName:
+                    if n == "XRayT":
+                        continue
+                    tn = "RecLoss"
+                    d = AllEvalData[n]["RecLoss"]
+                    RealDiscSc = AllEvalData["XRayT"]["RecLoss"]
+                    yd = RealDiscSc + d
+                    pred = [1]*len(RealDiscSc)+[0]*len(d)
+                    fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(yd), pos_label=1)
+                    auc = metrics.auc(fpr, tpr)
+                    AllAUCs[TotIt][n] = auc
+                    #print(n,auc)
+                subdf = pd.DataFrame(AllAUCs).transpose()
+                fig = plt.figure(figsize=(8,8))
+                for n in list(subdf.columns):
+                    plt.plot(subdf.index,subdf[n],label=n,marker="o")
+                plt.legend()
+                fig.savefig("%s/images/AUCs_LosRec.png" % (ExpDir))
+                plt.close() 
             
             #Set to train
             GenX.train()
