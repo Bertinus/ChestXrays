@@ -185,16 +185,17 @@ for epoch in range(Epoch):
         loss_g = criterion(PredFalse.view(-1), TrueLabel) + criterion(PredReal.view(-1), FakeLabel)
 
         #Optimize Discriminator
-        if loss_d < opt.MaxLoss:
-            print("Disc is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
-        else:
-            optimizerD.zero_grad()
-            loss_d.backward(retain_graph=True)
-            optimizerD.step()
+        optimizerD.zero_grad()
+        loss_d.backward(retain_graph=True)
+        optimizerD.step()
         #Optimize Generator
-        optimizerG.zero_grad()
-        loss_g.backward()
-        optimizerG.step()
+        
+        if loss_d < opt.MaxLoss:
+            print("Gen is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
+        else:
+            optimizerG.zero_grad()
+            loss_g.backward()
+            optimizerG.step()
     
         #StoreInfo .cpu().numpy()
         
