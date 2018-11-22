@@ -186,11 +186,11 @@ for epoch in range(Epoch):
 
         #Optimize Discriminator
         if loss_d < opt.MaxLoss:
+            print("Disc is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
+        else:
             optimizerD.zero_grad()
             loss_d.backward(retain_graph=True)
             optimizerD.step()
-        else:
-            print("Disc is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
         #Optimize Generator
         optimizerG.zero_grad()
         loss_g.backward()
@@ -295,7 +295,7 @@ for epoch in range(Epoch):
             for n in list(subdf.columns):
                 plt.plot(subdf.index,subdf[n],label=n,marker="o")
             plt.legend()
-            fig.savefig("%s/AUCs_LosRec.png" % (ExpDir))
+            fig.savefig("%s/images/AUCs_LosRec.png" % (ExpDir))
             plt.close() 
             
             #Set to train
