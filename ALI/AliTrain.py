@@ -190,8 +190,8 @@ for epoch in range(Epoch):
         optimizerD.step()
         #Optimize Generator
         
-        if loss_d < opt.MaxLoss:
-            print("Gen is tooooo good:%.2f" % (loss_d.cpu().detach().numpy()+0))
+        if loss_d > opt.MaxLoss:
+            print("Gen is tooooo good:%.2f, No BackProp" % (loss_d.cpu().detach().numpy()+0))
         else:
             optimizerG.zero_grad()
             loss_g.backward()
