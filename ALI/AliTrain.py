@@ -31,7 +31,7 @@ parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for op
 parser.add_argument('--N', type=int, default=-1, help='Number of images to load (-1 for all), default=-1')
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
 parser.add_argument('--checkpoint', type=int, default=-3, help='Checkpoint epoch to load')
-parser.add_argument('--make-check',type = int, default =1,help="When to make checkpoint")
+parser.add_argument('--make-check',type = int, default =10000,help="When to make checkpoint")
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 parser.add_argument('--eval', help="No Training",action='store_true',default = False)
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
@@ -117,7 +117,8 @@ if len(DiscriminatorLoss) > 0:
 print(TotIt)
 if Epoch < 0:
     Epoch = CP + (Epoch*-1)+1
-cck = 0 #Counter for check point
+cck = 0 #Counter for image
+csv = 0 #Counter for saving model
 for epoch in range(Epoch):
     #Set to train
     GenX.train()
@@ -127,8 +128,8 @@ for epoch in range(Epoch):
     DisXZ.train()
     
     #What epoch to start from
-    if epoch <= CP:
-        continue
+    #if epoch <= CP:
+    #    continue
     
     #Counter per Epoch
     cpt = 0
@@ -210,14 +211,33 @@ for epoch in range(Epoch):
         cpt += BS
         TotIt += BS
         cck += BS
+        csv += BS
         DiscriminatorLoss[TotIt] = loss_d.cpu().detach().numpy()+0
         InitLoadTime = time.time()
         RunTime = InitLoadTime - itime
         print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[TotIt],LoadingTime,RunTime))
-    
+        
+        tosave = "%010d" % (TotIt)
+        
+        if csv > opt.make_check:
+            csv = 0
+            print("Saving Model")
+            # do checkpointing
+            torch.save(GenX.state_dict(),
+                       '{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+            torch.save(GenZ.state_dict(),
+                       '{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+            torch.save(DisX.state_dict(),
+                       '{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+            torch.save(DisZ.state_dict(),
+                       '{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+            torch.save(DisXZ.state_dict(),
+                       '{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+            pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
+            pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
         if cck > opt.ToPrint:
             cck = 0
-            tosave = "%010d" % (TotIt)
+            
             #Print some image
         
             #Print generated
@@ -245,15 +265,30 @@ for epoch in range(Epoch):
             
             fig = plt.figure(figsize=(8,8))
             c = 0
-            for i in range(25):
+            for i in range(20):
                 c +=1
                 #print(fd.shape)
                 plt.subplot(5,5,c)
                 plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
-                plt.title("Disc=%.2f" % (PredFalse[i]))
+                plt.title("Fake Disc=%.2f" % (PredFalse[i]))
+                plt.axis("off")
+            for i in range(5):
+                c +=1
+                xi = Xnorm[i]
+                pi = PredReal[i]
+                if torch.cuda.is_available():
+                    xi = xi.cpu()
+                    pi = pi.cpu()
+                xi = xi.detach().numpy()
+                pi = pi.detach().numpy()
+                plt.subplot(5,5,c)
+                plt.imshow(xi[0],cmap="gray",vmin=-1,vmax=1)
+                plt.title("Real Disc=%.2f" % (pi))
                 plt.axis("off")
             fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
             plt.close() 
+            
+            
             #Calculate AUCs
             if opt.testing == True:
                 print("Scoring other DSet")
@@ -315,25 +350,8 @@ for epoch in range(Epoch):
             DisXZ.train()
     
     
-    tosave = -1
-    tosaveint = -1
-    if epoch % opt.make_check == 0:
-        tosave = "%06d" % (epoch)
-        tosaveint = epoch
-    if opt.eval == False:
-        # do checkpointing
-        torch.save(GenX.state_dict(),
-                   '{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
-        torch.save(GenZ.state_dict(),
-                   '{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
-        torch.save(DisX.state_dict(),
-                   '{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
-        torch.save(DisZ.state_dict(),
-                   '{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
-        torch.save(DisXZ.state_dict(),
-                   '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
-        pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint), "wb" ))
-        pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint), "wb" ))
+    
+            
                
                   
 
