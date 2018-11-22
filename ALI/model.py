@@ -77,9 +77,10 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
         CP = MaxCk
         print("I found this last checkpoint %d" % (CP))
     Diss = dict()
+    AllAUCs = dict()
     #Check if checkpoint exist
     if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP)):
-        print("Checkpoint %d exist, will load param and start training from there" % (CP))
+        #print("Checkpoint %d exist, will load param and start training from there" % (CP))
         DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
@@ -87,10 +88,11 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
         GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         Diss = pickle.load(open('{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,name, CP),"rb"))
-        print("Done loading")
+        AllAUCs = pickle.load(open('{0}/models/{1}_AUCs_epoch_{2}.pth'.format(ExpDir,name, CP),"rb"))
+        #print("Done loading")
 
     if torch.cuda.is_available():
-        print("cuda is available")
+        #print("cuda is available")
         DisX = DisX.cuda()
         DisZ = DisZ.cuda()
         DisXZ = DisXZ.cuda()
@@ -102,7 +104,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     
     
     
-    return(DisX,DisZ,DisXZ,GenZ,GenX,CP,Diss)
+    return(DisX,DisZ,DisXZ,GenZ,GenX,CP,Diss,AllAUCs)
     
     
 

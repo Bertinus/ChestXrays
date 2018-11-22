@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from matplotlib.colors import ListedColormap
-
+import os
 
 
 
@@ -74,8 +74,11 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
             plt.title("Rec Error = %.2f" % (np.mean(DiffX[i][0])))
             plt.imshow(DiffX[i][0],cmap=AlphaRed,vmin=0, vmax=2)
             plt.axis("off")
-        #print("Saving file")   
-        fig.savefig("%s/images/%s_%s_epoch_%s.png" % (ExpDir,Name,ImageType,tosave))
+        #print("Saving file")
+        
+        if not os.path.exists("%s/images/recon/%s/" % (ExpDir,ImageType)):
+            os.makedirs("%s/images/recon/%s/" % (ExpDir,ImageType))
+        fig.savefig("%s/images/recon/%s/%s_%s_epoch_%s.png" % (ExpDir,ImageType,Name,ImageType,tosave))
         plt.close('all')
         
     RealZ.resize((RealZ.shape[:2]))

@@ -21,6 +21,7 @@ def CreateFolder(wrkdir,name):
         os.makedirs(ExpDir)
         os.makedirs(ExpDir+"/models")
         os.makedirs(ExpDir+"/images")
+        os.makedirs(ExpDir+"/images/GenImg/")
 
     #This is my working dir    
     print("Wrkdir = %s" % (ExpDir))

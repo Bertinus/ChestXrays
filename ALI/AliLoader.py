@@ -32,8 +32,18 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   if TestSize > MaxSize:
       TestSize = MaxSize
   
+  
+  
   TestDF = ImagesInfoDF.tail(TestSize)
   TrainDF = ImagesInfoDF.head(len(ImagesInfoDF)-TestSize)
+  if not os.path.isfile(ExpDir+"/TrainImagesInfo.csv"):
+      
+      TrainDF.to_csv(ExpDir+"/TrainImagesInfo.csv")
+      TestDF.to_csv(ExpDir+"/TestImagesInfo.csv")
+  TrainDF = pd.read_csv(ExpDir+"/TrainImagesInfo.csv")
+  TestDF = pd.read_csv(ExpDir+"/TestImagesInfo.csv")
+  
+  
   print("Train Size = %d Test Size = %d" % (len(TrainDF),len(TestDF)))
   
   train_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainDF["name"]))
@@ -49,14 +59,16 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   
   data_transforms = transforms.Compose([
       transforms.ToPILImage(),
-      transforms.Resize(isize),
+      transforms.Resize([isize,isize]),
       transforms.ToTensor(),
   ])
   
   #Other Xray
-  OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
-  OtherXRayDir = "./OtherXray/"
-  OtherXRay = OtherXrayDataset(OtherXRayDir, transform=data_transforms)
+  OtherXRayDir = "./OtherXray/MURA-v1.1/valid/"
+  if os.path.exists("/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"):
+      OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
+  OtherXRay = OtherXrayDataset(OtherXRayDir, isize=isize)
+  print(len(OtherXRay))
   otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
   
   
@@ -113,28 +125,60 @@ def ParseXrayCSV(datadir,FileExist=False,N=-1):
 
 class OtherXrayDataset(Dataset):
 
-    def __init__(self, datadir, transform=None, nrows=-1):
+    def __init__(self, datadir, isize=None, nrows=-1):
 
         self.datadir = datadir
-        self.transform = transform
-        self.ImgFiles = [f.split(datadir)[-1] for f in glob.glob(datadir+"/*/*/*/*.png")]
+        self.ImgFiles = glob.glob(datadir+"/*/*/*/*.png")
         if nrows > 0:
             self.ImgFiles = self.ImgFiles[:nrows]
+        types = []
+        ImgTensor = torch.tensor([])
+        for PathToFile in self.ImgFiles:
+            sp = PathToFile.split("/")
+            pos = sp[-2].split("_")[-1][0].upper()
+            xType = sp[-4].split("_")[-1]
+            types.append("_".join([xType,pos]))
+            
+            
+            im = misc.imread(PathToFile)
+            if len(im.shape) > 2:
+                im = im[:, :, 0]
+            #Add color chanel
+            im = im[:,:,None]
+            # Tranform
+            padding = 0
+            if im.shape[0] > im.shape[1]:
+                padding = (int((im.shape[0]-im.shape[1])/2),0)
+            else:
+                padding = (0,int((im.shape[1]-im.shape[0])/2))
+                
+            data_transforms = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.Pad(padding,fill=0),
+                transforms.Resize([isize,isize]),
+                transforms.ToTensor(),
+            ])
+                
+            im = data_transforms(im)
+            im = im.reshape(1,1,im.shape[2],im.shape[2])
+            ImgTensor = torch.cat((ImgTensor, im), 0)    
+            
+        self.ImgTensor = ImgTensor    
+        self.types = types
+        
+        #Apply transformation now
+        
 
     def __len__(self):
         return len(self.ImgFiles)
 
     def __getitem__(self, idx):
-        PathToFile = os.path.join(self.datadir, self.ImgFiles[idx])
-        im = misc.imread(PathToFile)
-        if len(im.shape) > 2:
-            im = im[:, :, 0]
-        #Add color chanel
-        im = im[:,:,None]
-        # Tranform
-        if self.transform:
-            im = self.transform(im)
-        return im,PathToFile
+        PathToFile = self.ImgFiles[idx]
+        types = self.types[idx]
+        im = self.ImgTensor[idx]
+        
+        
+        return im,[PathToFile,types]
 
 class XrayDataset(Dataset):
 
@@ -146,40 +190,33 @@ class XrayDataset(Dataset):
         #print(nrows)
         if nrows > 0:
             self.ImgFiles = self.ImgFiles[:nrows]
+            
+        ImgTensor = torch.tensor([])
+        #Apply transformation now
+        for imn in self.ImgFiles:
+            PathToFile = os.path.join(self.datadir,"images/", imn)
+            im = misc.imread(PathToFile)
+            
+            if len(im.shape) > 2:
+                im = im[:, :, 0]
+            #Add color chanel
+            im = im[:,:,None]
+            # Tranform
+            if self.transform:
+                im = self.transform(im)
+            im = im.reshape(1,1,im.shape[2],im.shape[2])
+            ImgTensor = torch.cat((ImgTensor, im), 0)
+        self.ImgTensor = ImgTensor
 
+         
     def __len__(self):
         return len(self.ImgFiles)
 
     def __getitem__(self, idx):
-        PathToFile = [os.path.join(self.datadir,"images/", self.ImgFiles[idx])]
-        im = misc.imread(os.path.join(self.datadir,"images/", self.ImgFiles[idx]))
-        if len(im.shape) > 2:
-            im = im[:, :, 0]
-        #Add color chanel
-        im = im[:,:,None]
-        # Tranform
-        if self.transform:
-            im = self.transform(im)
+        PathToFile = os.path.join(self.datadir,"images/", self.ImgFiles[idx])
+        im = self.ImgTensor[idx]
+        return im,[PathToFile,PathToFile]
 
-        return im,PathToFile
-        
-        
-class Iterator:
-    """
-    iterator over dataloader which automatically resets when all samples have been seen
-    """
-    def __init__(self, dataloader):
-        self.dataloader = dataloader
-        self.cpt = 0
-        self.len = len(self.dataloader)
-        self.iterator = iter(self.dataloader)
-
-    def next(self):
-        if self.cpt == self.len:
-            self.cpt = 0
-            self.iterator = iter(self.dataloader)
-        self.cpt += 1
-        return self.iterator.next()
 
 
 class XrayDatasetTensor(Dataset):
@@ -187,7 +224,17 @@ class XrayDatasetTensor(Dataset):
     def __init__(self, TensorName,FullDF,Names):
 
         self.ImgTensor = torch.load(TensorName)
+        
         df = pd.read_csv(FullDF)
+        df.index = list(df["name"])
+        tdict =  df[df.columns[4:]].transpose().to_dict()
+        self.label = dict()
+        for n in tdict.keys():
+            tstr = []
+            for r in sorted(tdict[n].keys()):
+                if tdict[n][r] == 1:
+                    tstr.append(r)
+            self.label[n] = "_".join(tstr)
         self.NameToID = dict()
         for i in range(len(df["name"])):
             self.NameToID[df["name"][i]] = i
@@ -200,7 +247,9 @@ class XrayDatasetTensor(Dataset):
         ID = self.NameToID[self.Names[idx]]
         im = self.ImgTensor[ID]
         PathToFile = self.Names[idx]
-        return im,PathToFile
+        
+        
+        return im,[PathToFile,self.label[self.Names[idx]]]
 
 
 

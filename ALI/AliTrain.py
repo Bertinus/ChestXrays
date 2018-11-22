@@ -2,6 +2,7 @@ from model import *
 from AliLoader import *
 from ALI_Out import *
 
+import sys
 import pickle
 from torch.utils.data import DataLoader
 import torchvision.datasets as dset
@@ -41,6 +42,7 @@ parser.add_argument('--verbose',help="Verbose",default = False,action='store_tru
 opt = parser.parse_args()
 
 
+
 Epoch = opt.epoch #Number of Epoch
 LS = opt.LS #Latent Space Size
 batch_size = opt.batch_size #Batch Size
@@ -53,22 +55,28 @@ b2 = opt.beta2
 #Create all the folders to save stuff
 ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
 
-#Print Argument
-print("lr=%f" % (lr))
-print("b1=%f" % (b1))
-print("b2=%f" % (b2))
-print("batch_size=%d" % (batch_size))
-print("inputsize=%d" % (inputsize))
-print("seed=%d" % (opt.seed))
-print("name=%s" % (opt.name))
-
-
 
 datadir = opt.xraydir
 #ChestXray Image Dir
 if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
 
+#Print Argument
+Params = vars(opt)
+Params["ExpDir"] = ExpDir
+Params["xraydir"] = datadir
+if os.path.exists(ExpDir+"/params.pk"):
+    OldParams = pickle.load(open(ExpDir+"/params.pk","rb"))
+    for p in OldParams.keys():
+        if OldParams[p] != Params[p]:
+            print('Warning {0} values are different {1} {2}'.format(p,OldParams[p], Params[p]))
+    Req = ["LS","inputsize"]
+    for p in Req:
+        if OldParams[p] != Params[p]:
+            print('Error {0} values are different {1} {2}'.format(p,OldParams[p], Params[p]))
+            sys.exit()
+    
+pickle.dump(Params,open(ExpDir+"/params.pk","wb"))
 
 if opt.verbose:
     print("Loading dataset....")
@@ -76,14 +84,14 @@ if opt.verbose:
 dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed)
 
 #Keep same random seed for image testing  
-ConstantZ = torch.randn(9,LS,1,1)
+ConstantZ = torch.randn(25,LS,1,1)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
 #GenModel
 if opt.verbose:
     print("Loading Models....")
 CP = opt.checkpoint #Checkpoint to load (-2 for latest one, -1 for last epoch)
-DisX,DisZ,DisXZ,GenZ,GenX,CP,DiscriminatorLoss = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
+DisX,DisZ,DisXZ,GenZ,GenX,CP,DiscriminatorLoss,AllAUCs = GenModel(opt.inputsize,LS,CP,ExpDir,opt.name,ColorsNumber=ColorsNumber)
 
 #Optimiser
 optimizerG = optim.Adam([{'params' : GenX.parameters()},
@@ -103,6 +111,9 @@ TotIt = 0
 if len(DiscriminatorLoss) > 0:
     TotIt = np.max(list(DiscriminatorLoss.keys()))
 print(TotIt)
+if Epoch < 0:
+    Epoch = CP + (Epoch*-1)+1
+cck = 0 #Counter for check point
 for epoch in range(Epoch):
     #Set to train
     GenX.train()
@@ -117,7 +128,7 @@ for epoch in range(Epoch):
     
     #Counter per Epoch
     cpt = 0
-    cck = 0 #Counter for check point
+    
     
     #Some timer
     InitLoadTime = time.time()
@@ -189,11 +200,112 @@ for epoch in range(Epoch):
         
         cpt += BS
         TotIt += BS
+        cck += BS
         DiscriminatorLoss[TotIt] = loss_d.cpu().detach().numpy()+0
         InitLoadTime = time.time()
         RunTime = InitLoadTime - itime
         print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[TotIt],LoadingTime,RunTime))
-     
+    
+        if cck > 2500:
+            cck = 0
+            tosave = "%010d" % (TotIt)
+            #Print some image
+        
+            #Print generated
+            
+            #Set to eval
+            GenX.eval()
+            GenZ.eval()
+            DisX.eval()
+            DisZ.eval()
+            DisXZ.eval()
+            
+            
+            print("Generating Fake")
+            #Print Fake
+            with torch.no_grad():
+                FakeData = GenX(ConstantZ)
+                PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
+
+                if torch.cuda.is_available():
+                    FakeData = FakeData.cpu()
+                    PredFalse = PredFalse.cpu()
+                
+                FakeData = FakeData.detach().numpy()
+                PredFalse= PredFalse.detach().numpy()
+            
+            fig = plt.figure(figsize=(8,8))
+            c = 0
+            for i in range(25):
+                c +=1
+                #print(fd.shape)
+                plt.subplot(5,5,c)
+                plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
+                plt.title("Disc=%.2f" % (PredFalse[i]))
+                plt.axis("off")
+            fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
+            plt.close() 
+            #Calculate AUCs
+            
+            print("Scoring other DSet")
+            AllEvalData = dict()
+            for (dl,n) in zip(OtherSet,OtherName):
+                AllEvalData[n] = dict()
+                #Store some value
+                TDiscSc = []
+                TRecErr = []
+                TZ = []
+                TX = []
+                Tlab = []
+                for dataiter,lab in dl:
+                    ConstantX = dataiter*2.0-1.0
+                    if torch.cuda.is_available():
+                        ConstantX = ConstantX.cuda()
+                    DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=False)
+                    TDiscSc += DiscSc
+                    TRecErr += RecErr
+                    TZ += Z
+                    if len(TZ) > test_size:
+                        TZ = TZ[:test_size]
+                        TX = TX[:test_size]
+                        TDiscSc = TDiscSc[:test_size]
+                        TRecErr = TRecErr[:test_size]
+                        break
+                AllEvalData[n]["Z"] = TZ
+                AllEvalData[n]["X"] = TX
+                AllEvalData[n]["RecLoss"] = TRecErr
+                AllEvalData[n]["Dis"] = TDiscSc
+                        
+            print("Getting AUCs")
+            AllAUCs[TotIt] = dict()
+            for n in OtherName:
+                if n == "XRayT":
+                    continue
+                tn = "RecLoss"
+                d = AllEvalData[n]["RecLoss"]
+                RealDiscSc = AllEvalData["XRayT"]["RecLoss"]
+                yd = RealDiscSc + d
+                pred = [1]*len(RealDiscSc)+[0]*len(d)
+                fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(yd), pos_label=1)
+                auc = metrics.auc(fpr, tpr)
+                AllAUCs[TotIt][n] = auc
+                #print(n,auc)
+            subdf = pd.DataFrame(AllAUCs).transpose()
+            fig = plt.figure(figsize=(8,8))
+            for n in list(subdf.columns):
+                plt.plot(subdf.index,subdf[n],label=n,marker="o")
+            plt.legend()
+            fig.savefig("%s/AUCs_LosRec.png" % (ExpDir))
+            plt.close() 
+            
+            #Set to train
+            GenX.train()
+            GenZ.train()
+            DisX.train()
+            DisZ.train()
+            DisXZ.train()
+    
+    
     tosave = -1
     tosaveint = -1
     if epoch % opt.make_check == 0:
@@ -212,118 +324,11 @@ for epoch in range(Epoch):
         torch.save(DisXZ.state_dict(),
                    '{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint))
         pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint), "wb" ))
+        pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_epoch_{2}.pth'.format(ExpDir,opt.name, tosaveint), "wb" ))
                
                   
-    #Print some image
-    
-    #Print generated
-    
-    #Set to eval
-    GenX.eval()
-    GenZ.eval()
-    DisX.eval()
-    DisZ.eval()
-    DisXZ.eval()
-    
-    
-    
-    #Print Fake
-    with torch.no_grad():
-        FakeData = GenX(ConstantZ)
-        PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
 
-        if torch.cuda.is_available():
-            FakeData = FakeData.cpu()
-            PredFalse = PredFalse.cpu()
-        
-        FakeData = FakeData.detach().numpy()
-        PredFalse= PredFalse.detach().numpy()
-    
-    fig = plt.figure(figsize=(8,8))
-    c = 0
-    for i in range(9):
-        c +=1
-        #print(fd.shape)
-        plt.subplot(3,3,c)
-        plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
-        plt.title("Disc=%.2f" % (PredFalse[i]))
-        plt.axis("off")
-    fig.savefig("%s/images/%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
-    continue
-    AllEvalData = dict()
-    for (dl,n) in zip(OtherSet,OtherName):
-        print(n)
-        AllEvalData[n] = dict()
-        toprint = True
-        
-        #Store some value
-        TDiscSc = []
-        TRecErr = []
-        TZ = []
-        TX = []
-        for dataiter,_ in dl:
-            
-            ConstantX = dataiter*2.0-1.0
-            if torch.cuda.is_available():
-                ConstantX = ConstantX.cuda()
-            DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=toprint)
-            TDiscSc += DiscSc
-            TRecErr += RecErr
-            TZ += Z
-            
-            #Keep image
-            if torch.cuda.is_available():
-                ConstantX = ConstantX.cpu()
-            TX += list(ConstantX.detach().numpy())
-            #print(TX)
-            toprint = False
-            if len(TZ) > test_size:
-                TZ = TZ[:test_size]
-                TX = TX[:test_size]
-                TDiscSc = TDiscSc[:test_size]
-                TRecErr = TRecErr[:test_size]
-                break
-        AllEvalData[n]["Z"] = TZ
-        AllEvalData[n]["X"] = TX
-        AllEvalData[n]["RecLoss"] = TRecErr
-        AllEvalData[n]["Dis"] = TDiscSc
-    
-    
-    
-    for n in ["XRayT"]:
-        c = 0
-        fig = plt.figure(figsize=(8,8))
-        sind = np.argsort(AllEvalData[n]["RecLoss"])
-        if n == "XRayT":
-            sind = sind[::-1]
-        
-        for ind in sind[0:9]:
-            c +=1
-            plt.subplot(3,3,c)
-            plt.imshow(AllEvalData[n]["X"][ind][0],cmap="gray",vmin=-1,vmax=1)
-            
-            plt.title("RecLoss=%.2f" % (AllEvalData[n]["RecLoss"][ind]))
-            plt.axis("off")
-        fig.savefig("%s/images/%s_%s_SortError_epoch_%s.png" % (ExpDir,opt.name,n,tosave))
-    
-    #Do T-SNE
-    AllZ = []
-    for n in sorted(AllEvalData.keys()):
-        AllZ += AllEvalData[n]["Z"]
-    Y = manifold.TSNE(n_components=2).fit_transform(AllZ)
-    fig = plt.figure()
-    minc = 0
-    maxc = 0
-    for n in sorted(AllEvalData.keys()):
-      maxc += len(AllEvalData[n]["Z"])
-      plt.scatter(Y[minc:maxc,0],Y[minc:maxc,1],label=n)
-      minc = maxc
-    plt.legend()
-    fig.savefig("%s/images/%s_TSNE_epoch_%s.png" % (ExpDir,opt.name,tosave))
-    
-    if opt.eval == True:
-        break
-        
+   
                    
                    
         
