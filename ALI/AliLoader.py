@@ -97,10 +97,11 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
   ])
   #Add Flip
   vflip =  DataLoader(XrayDataset(datadir,TestDF, transform=data_transforms), shuffle=False, batch_size=testing_bs)
+  randray = DataLoader(XrayDataset(datadir,TestDF, transform=data_transforms,shuffle=True), shuffle=False, batch_size=testing_bs)
   
   
   
-  return(dataloader,len(TrainDF),len(TestDF),[ConstantImg,MNIST_loader,otherxray,hflip,vflip],["XRayT","MNIST","OXray","HFlip","VFlip"])
+  return(dataloader,len(TrainDF),len(TestDF),[ConstantImg,MNIST_loader,otherxray,hflip,vflip,randray],["XRayT","MNIST","OXray","HFlip","VFlip","Shuffle"])
 
 def ParseXrayCSV(datadir,FileExist=False,N=-1):
     lines = [l.rstrip() for l in open(datadir+"Data_Entry_2017.csv")]
@@ -188,7 +189,7 @@ class OtherXrayDataset(Dataset):
 
 class XrayDataset(Dataset):
 
-    def __init__(self, datadir,DF, transform=None, nrows=-1):
+    def __init__(self, datadir,DF, transform=None, nrows=-1,shuffle=False):
 
         self.datadir = datadir
         self.transform = transform
@@ -211,6 +212,12 @@ class XrayDataset(Dataset):
             if self.transform:
                 im = self.transform(im)
             im = im.reshape(1,1,im.shape[2],im.shape[2])
+            
+            if shuffle == True:
+
+                # With view
+                idx = torch.randperm(im.nelement())
+                im = im.view(-1)[idx].view(im.size())
             ImgTensor = torch.cat((ImgTensor, im), 0)
         self.ImgTensor = ImgTensor
 

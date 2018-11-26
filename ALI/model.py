@@ -71,7 +71,8 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     if CP == -2:
         #Find latest
         MaxCk = 0
-        for fck in glob.glob('{0}/models/{1}_DisXZ_epoch_*.pth'.format(ExpDir,name)):
+        for fck in glob.glob('{0}/models/*_DisXZ_It_*.pth'.format(ExpDir)):
+            #print(fck)
             nck = fck.split("_")[-1].split(".")[0]
             if int(nck) > MaxCk:MaxCk = int(nck)
         CP = MaxCk
@@ -79,16 +80,18 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     Diss = dict()
     AllAUCs = dict()
     #Check if checkpoint exist
-    if os.path.isfile('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP)):
+    if os.path.isfile('{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,name, CP)):
         #print("Checkpoint %d exist, will load param and start training from there" % (CP))
-        DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         
-        GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_epoch_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        Diss = pickle.load(open('{0}/models/{1}_Loss_epoch_{2}.pth'.format(ExpDir,name, CP),"rb"))
-        AllAUCs = pickle.load(open('{0}/models/{1}_AUCs_epoch_{2}.pth'.format(ExpDir,name, CP),"rb"))
+        GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        Diss = pickle.load(open('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP),"rb"))
+        
+        if os.path.isfile('{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,name, CP)):
+            AllAUCs = pickle.load(open('{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,name, CP),"rb"))
         #print("Done loading")
 
     if torch.cuda.is_available():
