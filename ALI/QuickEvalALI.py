@@ -53,7 +53,7 @@ print("Saved Model",SavedModelsIT)
 #Load all data
 dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,inputsize,-1,100,ModelDir,TestRatio=0.2,rseed=13,Testing = True)
 AllAUCs = dict()
-for cp in sorted(SavedModelsIT):
+for cp in sorted(SavedModelsIT)[::-1]:
     #Load current iteration
     print("Iterations",cp)
     
@@ -132,22 +132,25 @@ for cp in sorted(SavedModelsIT):
           AllAUCs[tn][cp][n] = auc
           print(tn,n,auc)
     pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,opt.name, cp), "wb" ))
+    if opt.epoch == -2:
+        break
   
-fig = plt.figure(figsize=(8,8))
 
-markers = ["o","x"]
+
+markers = ["",""]
 col = ["red","blue","green","yellow","orange"]
 linestyles = ['-', '--', '-.', ':']
 for i,tn in enumerate(sorted(AllAUCs.keys())):
     subdf = pd.DataFrame(AllAUCs[tn]).transpose()
     print(subdf.max(axis=0))
+    fig = plt.figure(figsize=(8,8))
     for j,n in enumerate(list(subdf.columns)):
         plt.plot(subdf.index,subdf[n],label=" ".join([tn,n]),marker=markers[i],color=col[j],linestyle=linestyles[i])
         
-plt.legend()
-fig.savefig("%s/images/AUCs_LosRec.png" % (ExpDir))
-plt.close()         
-        
+    plt.legend()
+    fig.savefig("%s/images/AUCs_%s.png" % (ExpDir,tn))
+    plt.close()         
+            
         
         
         
