@@ -8,6 +8,8 @@ from ALI_Out import *
 from sklearn import metrics
 from sklearn import manifold
 
+print("Done loading lib")
+
 #Parse command line
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
@@ -53,7 +55,7 @@ print("Saved Model",SavedModelsIT)
 #Load all data
 dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,inputsize,-1,100,ModelDir,TestRatio=0.2,rseed=13,Testing = True)
 AllAUCs = dict()
-for cp in sorted(SavedModelsIT):
+for cp in sorted(SavedModelsIT)[::-1]:
     #Load current iteration
     print("Iterations",cp)
     
@@ -80,6 +82,7 @@ for cp in sorted(SavedModelsIT):
     tosave = cp
     AllEvalData = dict()
     for (dl,n) in zip(OtherSet,OtherName):
+        print(n)
         AllEvalData[n] = dict()
         toprint = False
         #Store some value
@@ -90,7 +93,7 @@ for cp in sorted(SavedModelsIT):
         for dataiter,lab in dl:
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
-                dataiter = dataiter.cuda()
+                ConstantX = ConstantX.cuda()
             DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=toprint)
             TDiscSc += DiscSc
             TRecErr += RecErr
