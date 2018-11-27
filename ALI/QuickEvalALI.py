@@ -69,9 +69,9 @@ for cp in sorted(SavedModelsIT)[::-1]:
           if tn not in AllAUCs:AllAUCs[tn] = dict()
           if tcp not in AllAUCs[tn]:AllAUCs[tn][cp] = dict()
           AllAUCs[tn][tcp] = tAUCs[tn][tcp]  
-    if "RecLoss" in AllAUCs:
-        if cp in AllAUCs["RecLoss"]:
-            continue
+    #if "RecLoss" in AllAUCs:
+    #    if cp in AllAUCs["RecLoss"]:
+     #       continue
     #Set to eval
     GenX.eval()
     GenZ.eval()
@@ -90,6 +90,7 @@ for cp in sorted(SavedModelsIT)[::-1]:
         TRecErr = []
         TZ = []
         TX = []
+        TZdist = []
         for dataiter,lab in dl:
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
@@ -98,7 +99,8 @@ for cp in sorted(SavedModelsIT)[::-1]:
             TDiscSc += DiscSc
             TRecErr += RecErr
             TZ += Z
-            
+            Zdist = np.sum(np.power(Z,2),axis=1)
+            TZdist += list(Zdist)
             #Keep image
             if torch.cuda.is_available():
                 ConstantX = ConstantX.cpu()
@@ -109,19 +111,32 @@ for cp in sorted(SavedModelsIT)[::-1]:
                 TX = TX[:test_size]
                 TDiscSc = TDiscSc[:test_size]
                 TRecErr = TRecErr[:test_size]
+                TZdist  = TZdist[:test_size]
                 break
                 
         AllEvalData[n]["Z"] = TZ
         AllEvalData[n]["X"] = TX
         AllEvalData[n]["RecLoss"] = TRecErr
         AllEvalData[n]["Dis"] = TDiscSc
-    for tn in ["RecLoss","Dis"]:
+        AllEvalData[n]["Distance"] = TZdist
+        
+        
+    for tn in ["RecLoss","Dis","Distance","Zscore"]:
       for n in OtherName:
           if n == "XRayT":
               continue
-          d = AllEvalData[n][tn]
-          RealDiscSc = AllEvalData["XRayT"][tn]
-          yd = RealDiscSc + d
+          if tn == "Zscore":
+              d1 = np.array(AllEvalData["XRayT"]["RecLoss"]+AllEvalData[n]["RecLoss"])
+              d1 = (d1 - np.mean(d1)) / np.std(d1)
+              d2 = np.array(AllEvalData["XRayT"]["Dis"]+AllEvalData[n]["Dis"])
+              d2 = (d2 - np.mean(d2)) / np.std(d2)
+              yd = list(d2-d1)
+              
+              
+          else:
+              d = AllEvalData[n][tn]
+              RealDiscSc = AllEvalData["XRayT"][tn]
+              yd = RealDiscSc + d
           pred = [1]*len(RealDiscSc)+[0]*len(d)
           mod = 1.0
           if tn == "RecLoss":
@@ -140,8 +155,8 @@ for cp in sorted(SavedModelsIT)[::-1]:
   
 
 
-markers = ["",""]
-col = ["red","blue","green","yellow","orange"]
+markers = ["","","",""]
+col = ["red","blue","green","yellow","orange","pink"]
 linestyles = ['-', '--', '-.', ':']
 for i,tn in enumerate(sorted(AllAUCs.keys())):
     subdf = pd.DataFrame(AllAUCs[tn]).transpose()
