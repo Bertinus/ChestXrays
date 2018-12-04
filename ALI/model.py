@@ -88,7 +88,8 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
         
         GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        Diss = pickle.load(open('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP),"rb"))
+        if os.path.isfile('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP)):
+            Diss = pickle.load(open('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP),"rb"))
         
         if os.path.isfile('{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,name, CP)):
             AllAUCs = pickle.load(open('{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,name, CP),"rb"))

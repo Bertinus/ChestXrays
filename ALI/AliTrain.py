@@ -41,6 +41,7 @@ parser.add_argument('--verbose',help="Verbose",default = False,action='store_tru
 parser.add_argument('--testing',help="Calculate AUCs on other Dataset",default = False,action='store_true')
 parser.add_argument('--ToPrint', type=int, default=2500, help='When to print generated sample')
 parser.add_argument('--RandomLabel', help="Predicted Label are semi random",default = False,action='store_true')
+parser.add_argument('--Restrict',help="Restrict training on this label",default="NA")
 
 opt = parser.parse_args()
 
@@ -84,7 +85,7 @@ pickle.dump(Params,open(ExpDir+"/params.pk","wb"))
 if opt.verbose:
     print("Loading dataset....")
 #Create all the dataset (training and the testing)
-dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed,Testing=opt.testing)
+dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed,Testing=opt.testing,Restrict=opt.Restrict,MaxSize=10000)
 
 #Keep same random seed for image testing
 torch.manual_seed(opt.seed)
@@ -350,12 +351,65 @@ for epoch in range(Epoch):
             DisXZ.train()
     
     
-    
+print("Saving Model")
+# do checkpointing
+torch.save(GenX.state_dict(),
+           '{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+torch.save(GenZ.state_dict(),
+           '{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+torch.save(DisX.state_dict(),
+           '{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+torch.save(DisZ.state_dict(),
+           '{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+torch.save(DisXZ.state_dict(),
+           '{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
+pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
+pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))    
             
                
                   
+GenX.eval()
+GenZ.eval()
+DisX.eval()
+DisZ.eval()
+DisXZ.eval()
+print("Generating Fake")
+#Print Fake
+with torch.no_grad():
+    FakeData = GenX(ConstantZ)
+    PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
 
-   
+    if torch.cuda.is_available():
+        FakeData = FakeData.cpu()
+        PredFalse = PredFalse.cpu()
+    
+    FakeData = FakeData.detach().numpy()
+    PredFalse= PredFalse.detach().numpy()
+
+fig = plt.figure(figsize=(8,8))
+c = 0
+for i in range(20):
+    c +=1
+    #print(fd.shape)
+    plt.subplot(5,5,c)
+    plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
+    plt.title("Fake Disc=%.2f" % (PredFalse[i]))
+    plt.axis("off")
+for i in range(5):
+    c +=1
+    xi = Xnorm[i]
+    pi = PredReal[i]
+    if torch.cuda.is_available():
+        xi = xi.cpu()
+        pi = pi.cpu()
+    xi = xi.detach().numpy()
+    pi = pi.detach().numpy()
+    plt.subplot(5,5,c)
+    plt.imshow(xi[0],cmap="gray",vmin=-1,vmax=1)
+    plt.title("Real Disc=%.2f" % (pi))
+    plt.axis("off")
+fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
+plt.close() 
                    
                    
         

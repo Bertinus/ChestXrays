@@ -13,7 +13,7 @@ import torch
 
 
 
-def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000,Testing = False):
+def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000,Testing = False,Restrict="NA"):
   
   #PreProcess folder
   PreProDir = datadir+"PreProcess/Size"+str(isize)
@@ -42,8 +42,11 @@ def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed
       TestDF.to_csv(ExpDir+"/TestImagesInfo.csv")
   TrainDF = pd.read_csv(ExpDir+"/TrainImagesInfo.csv")
   TestDF = pd.read_csv(ExpDir+"/TestImagesInfo.csv")
-  
-  
+  if Restrict != "NA":
+      print("Restricting training on " + Restrict)
+      print(len(TrainDF))
+      TrainDF = TrainDF[TrainDF[Restrict] == 1]
+      print(len(TrainDF))
   
   
   train_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainDF["name"]))
