@@ -81,7 +81,7 @@ for cp in range(CP+1):
             ConstantX = dataiter*2.0-1.0
             if torch.cuda.is_available():
                 ConstantX = ConstantX.cuda()
-            DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=toprint)
+            DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 20,SaveFile=toprint)
             TDiscSc += DiscSc
             TRecErr += RecErr
             TZ += Z
@@ -104,7 +104,7 @@ for cp in range(CP+1):
                 TDiscSc = TDiscSc[:test_size]
                 TRecErr = TRecErr[:test_size]
                 break
-            break
+#            break
         AllEvalData[n]["Z"] = TZ
         AllEvalData[n]["X"] = TX
         AllEvalData[n]["RecLoss"] = TRecErr
@@ -116,18 +116,23 @@ for cp in range(CP+1):
         c = 0
         fig = plt.figure(figsize=(8,8))
         sind = np.argsort(AllEvalData[n]["RecLoss"])
-        if n == "XRayT":
-            sind = sind[::-1]
         
-        for ind in sind[0:16]:
+        for ind in sind[0:50]:
             c +=1
-            plt.subplot(4,4,c)
+            plt.subplot(10,10,c)
             plt.imshow(AllEvalData[n]["X"][ind][0],cmap="gray",vmin=-1,vmax=1)
-            plt.title("ReL=%.2f" % (AllEvalData[n]["RecLoss"][ind]))
+            #plt.title("ReL=%.2f" % (AllEvalData[n]["RecLoss"][ind]))
+            plt.axis("off")
+        for ind in sind[-50:]:
+            c +=1
+            plt.subplot(10,10,c)
+            plt.imshow(AllEvalData[n]["X"][ind][0],cmap="gray",vmin=-1,vmax=1)
+            #plt.title("ReL=%.2f" % (AllEvalData[n]["RecLoss"][ind]))
             plt.axis("off")
         fig.savefig("%s/images/%s_%s_SortError_epoch_%s.png" % (ExpDir,opt.name,n,tosave))
-    fig = plt.figure(figsize=(8,8))
+    
     for tn in ["RecLoss","Dis"]:
+      fig = plt.figure(figsize=(8,8))
       for n in OtherName:
           
           d = AllEvalData[n]["RecLoss"]
@@ -142,7 +147,7 @@ for cp in range(CP+1):
           plt.xlabel(tn)
       plt.legend()
       
-      fig.savefig("%s/images/%s_Dist%s_epoch_%s.png" % (ExpDir,opt.name,tn,tosave))
+      fig.savefig("%s/images/%s_%s_Dist%s_epoch_%s.png" % (ExpDir,tn,opt.name,tn,tosave))
 
     #Do T-SNE
     AllZ = []
@@ -178,11 +183,19 @@ for cp in range(CP+1):
         plt.legend()
         fig.savefig("%s/images/%s_TSNE_%s_epoch_%s.png" % (ExpDir,opt.name,n,tosave))
     for n in ["XRayT"]:
-        df = pd.DataFrame([AllEvalData[n]["RecLoss"],AllEvalData[n]["Lab"]]).transpose()
+        df = pd.DataFrame([AllEvalData[n]["RecLoss"],list(np.array(AllEvalData[n]["Lab"]) == "no_finding")]).transpose()
         df.columns = ["RecLoss","Lab"]
         df["RecLoss"] = df["RecLoss"].apply(pd.to_numeric)
         print(df.groupby(by=["Lab"]).mean().sort_values(by="RecLoss"))
+        #fpr, tpr, thresholds = metrics.roc_curve(df["Lab"],df["RecLoss"], pos_label=True)
+        #auc = metrics.auc(fpr, tpr)    
+        #print(auc)
         
+        df = pd.DataFrame([AllEvalData[n]["RecLoss"],list(np.array(AllEvalData[n]["Lab"]) )]).transpose()
+        print(df)
+        
+        df = df.sort_values(by="RecLoss")
+        print(df)
         
         
         
