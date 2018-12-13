@@ -104,7 +104,7 @@ for cp in range(CP+1):
                 TDiscSc = TDiscSc[:test_size]
                 TRecErr = TRecErr[:test_size]
                 break
-            break
+            #break
         AllEvalData[n]["Z"] = TZ
         AllEvalData[n]["X"] = TX
         AllEvalData[n]["RecLoss"] = TRecErr
@@ -167,18 +167,18 @@ for cp in range(CP+1):
         df = pd.DataFrame([Z[0],Z[1],AllEvalData[n]["Lab"]]).transpose()
         df.columns = ["Z0","Z1","lab"]
         df[["Z0","Z1"]] = df[["Z0","Z1"]].apply(pd.to_numeric)
-        print(df["lab"].value_counts())
-        print(df.head(5))
+        #print(df["lab"].value_counts())
+        #print(df.head(5))
         ind = df["lab"].value_counts().head(10).index
         for uni in ind:
             subdf = df[df["lab"] == uni]
-            #print(uni)
-            #print(subdf.head(5))
+            print(uni)
+            print(subdf.head(5))
             plt.scatter(subdf["Z0"],subdf["Z1"],label=uni)
         plt.legend()
         fig.savefig("%s/images/%s_TSNE_%s_epoch_%s.png" % (ExpDir,opt.name,n,tosave))
     for n in ["XRayT"]:
-        df = pd.DataFrame([AllEvalData[n]["RecLoss"],AllEvalData[n]["Lab"]]).transpose()
+        df = pd.DataFrame([AllEvalData[n]["RecLoss"],np.array(AllEvalData[n]["Lab"]) == "no_finding"]).transpose()
         df.columns = ["RecLoss","Lab"]
         df["RecLoss"] = df["RecLoss"].apply(pd.to_numeric)
         print(df.groupby(by=["Lab"]).mean().sort_values(by="RecLoss"))
