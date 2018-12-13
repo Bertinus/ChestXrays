@@ -306,7 +306,7 @@ for epoch in range(Epoch):
                         ConstantX = dataiter*2.0-1.0
                         if torch.cuda.is_available():
                             ConstantX = ConstantX.cuda()
-                        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 3,SaveFile=False)
+                        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 10,SaveFile=False)
                         TDiscSc += DiscSc
                         TRecErr += RecErr
                         TZ += Z

@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
-parser.add_argument('--epoch',type=int,help="Epoch to run (-2 run last,-1 run all)",default = -2)
+parser.add_argument('--epoch',type=int,help="Epoch to run (-2 run last,-1 run all)",default = -1)
 parser.add_argument('--LS', type=int, default=128, help='Latent Size')
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
 
@@ -69,9 +69,9 @@ for cp in sorted(SavedModelsIT)[::-1]:
           if tn not in AllAUCs:AllAUCs[tn] = dict()
           if tcp not in AllAUCs[tn]:AllAUCs[tn][cp] = dict()
           AllAUCs[tn][tcp] = tAUCs[tn][tcp]  
-    #if "RecLoss" in AllAUCs:
-    #    if cp in AllAUCs["RecLoss"]:
-     #       continue
+    if "RecLoss" in AllAUCs:
+        if cp in AllAUCs["RecLoss"]:
+            continue
     #Set to eval
     GenX.eval()
     GenZ.eval()
@@ -140,6 +140,8 @@ for cp in sorted(SavedModelsIT)[::-1]:
           pred = [1]*len(RealDiscSc)+[0]*len(d)
           mod = 1.0
           if tn == "RecLoss":
+              mod = -1.0
+          if tn == "Distance":
               mod = -1.0
           fpr, tpr, thresholds = metrics.roc_curve(pred,mod*np.array(yd), pos_label=1)
           auc = metrics.auc(fpr, tpr)
