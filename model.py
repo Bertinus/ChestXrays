@@ -33,7 +33,9 @@ def addDropoutRec(module, p):
 
 
 def addDropout(net, p=0.1):
-    net.features = addDropoutRec(net.features, p=p)
+    for name in net.features._modules.keys():
+        if name != "conv0":
+            net.features._modules[name] = addDropoutRec(net.features._modules[name], p=p)
     net.classifier = addDropoutRec(net.classifier, p=p)
     return net
 
@@ -42,11 +44,11 @@ class myDenseNet(nn.Module):
     """
     see https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
     """
-    def __init__(self, out_features=14):
+    def __init__(self, out_features=14, in_features=1024):
         super(myDenseNet, self).__init__()
         net = models.densenet121(pretrained=True)
         self.features = net.features
-        self.classifier = nn.Sequential(Linear(in_features=1024, out_features=out_features), nn.Sigmoid())
+        self.classifier = nn.Sequential(Linear(in_features=in_features, out_features=out_features), nn.Sigmoid())
 
     def forward(self, x):
         activations = []
@@ -55,8 +57,10 @@ class myDenseNet(nn.Module):
             activations.append(x)
 
         out = F.relu(x, inplace=True)
-        out = F.avg_pool2d(out, kernel_size=7, stride=1).view(x.size(0), -1)
         activations.append(out)
+        out = F.avg_pool2d(out, kernel_size=7, stride=1)
+        # out = F.max_pool2d(out, kernel_size=14, stride=1)
+        out = out.view(x.size(0), -1)
         out = self.classifier(out)
         activations.append(out)
         return activations
@@ -81,8 +85,10 @@ if __name__ == "__main__":
 
     # print(type(densenet.classifier[0]), type(densenet.classifier[1]))
     #
-    # for name, param in mydensenet.named_parameters():
-    #     print(name, param.requires_grad)
+    for name, param in mydensenet.named_parameters():
+        print(name, param.requires_grad)
+
+    quit()
 
     dataloader_iterator = Iterator(MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16))
 
@@ -91,22 +97,19 @@ if __name__ == "__main__":
     mydensenet.eval()
 
     # print(data.size())
-    print(mydensenet(data)[-1])
+    # print(mydensenet(data)[-1])
 
     mydensenet = addDropout(mydensenet, p=0.1)
 
-    # for name, param in mydensenet.named_parameters():
-    #     print(name, param.requires_grad)
+    for name, param in mydensenet.named_parameters():
+        print(name, param.requires_grad)
 
     mydensenet.eval()
 
-    print(mydensenet(data)[-1])
+    # print(mydensenet(data)[-1])
 
     # for name, param in mydensenet.named_parameters():
     #     print(name, param.requires_grad)
-
-
-
 
     # print(origdensenet(data))
 

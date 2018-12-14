@@ -4,6 +4,7 @@ import os
 from torch.optim import Adam
 from model import myDenseNet, averageCrossEntropy, addDropout
 from tensorboardX import SummaryWriter
+from torch.optim.lr_scheduler import StepLR
 
 
 def initWriter(savemodeldir, logdir):
@@ -34,7 +35,7 @@ def writeImages(writer, activations):
 
     writer.add_image('Activations/Activation_' + str(9), activations[9][0, 3:6, :, :], num_iteration)
     writer.add_image('Activations/Activation_' + str(11), activations[11][0, 3:6, :, :], num_iteration)
-    writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
+    # writer.add_image('Activations/Final', activations[12][0, :].view(32, 32), num_iteration)
     writer.add_image('Activations/BatchOutput', activations[13][None, :, :], num_iteration)
     writer.add_image('Activations/BatchLabels', label, num_iteration)
 
@@ -77,8 +78,8 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/u/bertinpa/Documents/ChestXrays/Logs/model_3"
-    logdir = "/u/bertinpa/Documents/ChestXrays/Logs/training_3"
+    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
+    logdir = "/data/milatmp1/bertinpa/Logs/training_3"
 
     # Network
     inputsize = [224, 224]
@@ -91,7 +92,12 @@ if __name__ == "__main__":
     # Optimizer
     learning_rate = 0.001
 
+    # scheduler
+    sched_step_size = 10
+    sched_gamma = 0.1
+
     # Training
+    batch_size = 16
     num_epochs = 100
     val_every_n_iter = 200
     batch_per_val_session = 10
@@ -104,8 +110,8 @@ if __name__ == "__main__":
     print("Initializing...")
 
     # Dataloaders
-    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16, nrows=nrows)
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=16)
+    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size)
 
     # Model
     if torch.cuda.is_available():
@@ -125,6 +131,7 @@ if __name__ == "__main__":
 
     # Optimizer
     optimizer = Adam(densenet.parameters(), lr=learning_rate)
+    scheduler = StepLR(optimizer, step_size=sched_step_size, gamma=sched_gamma)  # Used to decay learning rate
 
     ####################################################################################################################
     # Training
@@ -136,8 +143,11 @@ if __name__ == "__main__":
     val_iterator = Iterator(val_dataloader)  # Iterator for validation samples
 
     for epoch in range(num_epochs):
+
+        scheduler.step()
+
         # Training
-        for data, label in train_dataloader:
+        for data, label, idx in train_dataloader:
 
             if torch.cuda.is_available():
                 data = data.cuda()
@@ -165,7 +175,7 @@ if __name__ == "__main__":
             if num_iteration % val_every_n_iter == 0:
 
                 densenet.eval()
-                writeImages(writer, activations=densenet(data))
+                # writeImages(writer, activations=densenet(data))
                 test_loss = torch.zeros(1, requires_grad=False)
 
                 if torch.cuda.is_available():
@@ -173,7 +183,7 @@ if __name__ == "__main__":
 
                 for _ in range(batch_per_val_session):
 
-                    data, label = val_iterator.next()
+                    data, label, idx = val_iterator.next()
 
                     if torch.cuda.is_available():
                         data = data.cuda()
