@@ -114,7 +114,7 @@ if __name__ == '__main__':
     cpt = 0
 
     for dataiter in dataloader:
-        data, label = dataiter
+        data, label, idx = dataiter
 
         cpt += 1
         if cpt > 1:

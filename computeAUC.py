@@ -1,12 +1,13 @@
 from dataset import MyDataLoader
 import torch
 import os
-from model import myDenseNet, addDropout
+from model import myDenseNet, addDropout, DenseNet121, load_dictionary
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import ShuffleSplit
 import matplotlib.pyplot as plt
 import pandas as pd
+
 
 if __name__ == "__main__":
 
@@ -21,11 +22,11 @@ if __name__ == "__main__":
     original_paper_results = ["0.8094", "0.7901", "0.7345",
                               "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
                               "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
-    """
+
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "Models/model_178800.pth"
+    saved_model_path = "Models/model.pth.tar"
     saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_test"
 
     """
@@ -33,7 +34,8 @@ if __name__ == "__main__":
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
     saved_model_path = "Models/model_178800.pth"  # "/data/milatmp1/bertinpa/Logs/model_3/model_37200.pth"
-    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_37200"
+    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_test"
+    """
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
@@ -58,13 +60,13 @@ if __name__ == "__main__":
 
     # Model
     if torch.cuda.is_available():
-        densenet = myDenseNet().cuda()
-        densenet = addDropout(densenet, p=0)
+        densenet = DenseNet121(14).cuda()
+        # densenet = addDropout(densenet, p=0)
         densenet.load_state_dict(torch.load(saved_model_path))
     else:
-        densenet = myDenseNet()
-        densenet = addDropout(densenet, p=0)
-        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        densenet = DenseNet121(14)
+        # densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
 
     cpt = 0
     densenet.eval()

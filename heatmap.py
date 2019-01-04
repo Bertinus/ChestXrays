@@ -1,6 +1,6 @@
-from dataset import MyDataLoader
+from dataset import MyDataLoader, Iterator
 import torch
-from model import myDenseNet, addDropout
+from model import myDenseNet, addDropout, averageCrossEntropy
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import imresize
@@ -12,23 +12,67 @@ def transparent_cmap(cmap, n=255):
     """
     mycmap = cmap
     mycmap._init()
-    mycmap._lut[:, -1] = np.linspace(0, 0.8, n+4)
+    mycmap._lut[:, -1] = np.linspace(0, 0.8, n + 4)
     return mycmap
 
 
+def get_heatmap(classif_weight, activation, data):
+    """
+    :param classif_weight:
+    :param activation:
+    :param data:
+    :return: list of heatmaps to be plotted corresponding to the different deseases
+    """
+    heatmaps = [torch.sum(classif_weight[i] * activation, dim=2).numpy().clip(min=0)
+                for i in range(len(classif_weight))]
+
+    heatmaps = [imresize(x, data.detach().numpy()[0, 0].shape) * np.max(x) / 255 for x in heatmaps]
+
+    return heatmaps
+
+
+def plot_heatmaps(data, label, heatmaps, pathologies):
+    # Use base cmap to create transparent
+    mycmap = transparent_cmap(plt.cm.Reds)
+    y, x = np.mgrid[0:224, 0:224]
+
+    # Plot original images
+    fig, ax = plt.subplots(1, 1)
+    plt.imshow(data.detach().numpy()[0, 0], cmap="gray")
+    plt.axis('off')
+    plt.title("Original image")
+    plt.show()
+
+    # For a given image, plot 14 heatmaps corresponding to the 14 deseases
+    for i in range(len(pathologies)):
+        fig, ax = plt.subplots(1, 1)
+        plt.imshow(data.detach().numpy()[0, 0], cmap="gray")
+        if not (heatmaps[i] == 0).all():
+            cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
+            fig.colorbar(cb)
+        plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
+        plt.axis('off')
+        plt.show()
+
+
 if __name__ == "__main__":
+
+    ####################################################################################################################
+    # Parameters
+    ####################################################################################################################
+
+    inputsize = [224, 224]  # Image Size fed to the network
+    batch_size = 1
 
     pathologies = ["Atelectasis", "Consolidation", "Infiltration",
                    "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
                    "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
-    inputsize = [224, 224]  # Image Size fed to the network
-    batch_size = 1
-
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model_178800.pth"
+    saved_model_path = "/home/user1/PycharmProjects/ChestXrays/Models/model.pth.tar"
+    # "/home/user1/PycharmProjects/ChestXrays/Models/model_178800.pth"
     saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_test"
 
     """
@@ -38,6 +82,10 @@ if __name__ == "__main__":
     saved_model_path = "/data/milatmp1/bertinpa/Logs/model_1/model_178800.pth"
     saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_178800"
     """
+
+    ####################################################################################################################
+    # Initialization
+    ####################################################################################################################
 
     # Model
     if torch.cuda.is_available():
@@ -52,41 +100,49 @@ if __name__ == "__main__":
     # Dataloader
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=False)
 
-    for data, label in val_dataloader:
+    # Loss
+    criterion = averageCrossEntropy
 
-        if torch.cuda.is_available():
-            data = data.cuda()
-            label = label.cuda()
+    val_iterator = Iterator(val_dataloader)  # Iterator for validation samples
 
-        activation = densenet(data)[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
-        classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
+    data, label, idx = val_iterator.next()
 
-        # List of heatmaps to be plotted
-        heatmaps = [torch.sum(classif_weight[i] * activation, dim=2).numpy().clip(min=0)
-                    for i in range(len(classif_weight))]
+    data.requires_grad = True
 
-        data = data.numpy()[0, 0]
-        heatmaps = [imresize(x, data.shape)*np.max(x)/255 for x in heatmaps]
+    if torch.cuda.is_available():
+        data = data.cuda()
+        label = label.cuda()
 
-        # Use base cmap to create transparent
-        mycmap = transparent_cmap(plt.cm.Reds)
-        y, x = np.mgrid[0:224, 0:224]
+    output = densenet(data)
 
-        fig, ax = plt.subplots(1, 1)
-        plt.imshow(data, cmap="gray")
-        plt.axis('off')
-        plt.title("Original image")
-        plt.show()
+    ####################################################################################################################
+    # Plot heatmaps based on last layer activations
+    ####################################################################################################################
 
-        # For a given image, plot 14 heatmaps corresponding to the 14 deseases
-        for i in range(14):
-            fig, ax = plt.subplots(1, 1)
-            plt.imshow(data, cmap="gray")
-            if not (heatmaps[i] == 0).all():
-                cb = ax.contourf(x, y, heatmaps[i], 8, cmap=mycmap, vmin=0, vmax=8)
-                # fig.colorbar(cb)
-            plt.title(pathologies[i] + " (ground truth : " + str(label[0, i].numpy())[0] + ")")
-            plt.axis('off')
-            plt.show()
+    activation = output[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
+    classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
+    heatmaps = get_heatmap(classif_weight, activation, data)
 
-        quit()
+    # plot_heatmaps(data, label, heatmaps, pathologies)
+
+    ####################################################################################################################
+    # Plot heatmaps based on gradient norm
+    ####################################################################################################################
+
+    heatmaps = []
+
+    for i in range(14):
+        class_label = torch.zeros((1, 14))
+        class_label[0, i] = 1
+
+        loss = criterion(output[-1], class_label)
+        loss.backward(retain_graph=True)
+
+        heatm = np.absolute(data.grad.detach().numpy()[0, 0])
+        heatm = 10 * heatm / np.max(heatm)
+
+        heatmaps.append(heatm)
+
+        data.grad.zero_()
+
+    plot_heatmaps(data, label, heatmaps, pathologies)

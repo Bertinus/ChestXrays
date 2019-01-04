@@ -66,6 +66,52 @@ class myDenseNet(nn.Module):
         return activations
 
 
+class DenseNet121(nn.Module):
+    """Model modified.
+    The architecture of our model is the same as standard DenseNet121
+    except the classifier layer which has an additional sigmoid function.
+    """
+    def __init__(self, out_size):
+        super(DenseNet121, self).__init__()
+        self.densenet121 = models.densenet121(pretrained=True)
+        num_ftrs = self.densenet121.classifier.in_features
+        self.densenet121.classifier = nn.Sequential(
+            nn.Linear(num_ftrs, out_size),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.densenet121(x)
+        return x
+
+
+def load_dictionary(saved_model_path, map_location=None):
+    """
+    Used to load state_dict from the repo https://github.com/arnoweng/CheXNet
+    :return: dict of the weights to be loaded
+    """
+    if map_location == 'cpu':
+        checkpoint = torch.load(saved_model_path, map_location='cpu')
+    else:
+        checkpoint = torch.load(saved_model_path)
+
+    checkpoint = torch.load(saved_model_path, map_location='cpu')
+
+    keys = checkpoint['state_dict'].copy().keys()
+    for key in keys:
+        if "norm.1" in key:
+            checkpoint['state_dict'][key[7:].replace("norm.1", "norm1")] = checkpoint['state_dict'].pop(key)
+        elif "norm.2" in key:
+            checkpoint['state_dict'][key[7:].replace("norm.2", "norm2")] = checkpoint['state_dict'].pop(key)
+        elif "conv.1" in key:
+            checkpoint['state_dict'][key[7:].replace("conv.1", "conv1")] = checkpoint['state_dict'].pop(key)
+        elif "conv.2" in key:
+            checkpoint['state_dict'][key[7:].replace("conv.2", "conv2")] = checkpoint['state_dict'].pop(key)
+        else:
+            checkpoint['state_dict'][key[7:]] = checkpoint['state_dict'].pop(key)
+
+    return checkpoint['state_dict']
+
 if __name__ == "__main__":
 
     ####################################################################################################################

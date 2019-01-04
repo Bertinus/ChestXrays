@@ -1,5 +1,6 @@
 # INFO
 
+- model.pth.tar : taken from repo https://github.com/arnoweng/CheXNet
 - model 51000 : First trial with errors in the loss function
 - model 39000 : Second trial with a lot of overfitting
 - model 86400 : No dropout, vertical & horizontal flip for data augmentation
