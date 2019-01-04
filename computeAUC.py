@@ -23,6 +23,7 @@ if __name__ == "__main__":
                               "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
                               "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
 
+    """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
@@ -33,9 +34,8 @@ if __name__ == "__main__":
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "Models/model_178800.pth"  # "/data/milatmp1/bertinpa/Logs/model_3/model_37200.pth"
+    saved_model_path = "Models/model.pth.tar"  # "Models/model_178800.pth"
     saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_test"
-    """
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
