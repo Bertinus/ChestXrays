@@ -112,6 +112,7 @@ def load_dictionary(saved_model_path, map_location=None):
 
     return checkpoint['state_dict']
 
+
 if __name__ == "__main__":
 
     ####################################################################################################################
