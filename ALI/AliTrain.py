@@ -1,6 +1,6 @@
 from model import *
 from AliLoader import *
-from ALI_Out import *
+#from ALI_Out import *
 
 import sys
 import pickle
@@ -35,7 +35,7 @@ parser.add_argument('--make-check',type = int, default =10000,help="When to make
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
 parser.add_argument('--eval', help="No Training",action='store_true',default = False)
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
-parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
+parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "/media/vince/MILA/Chest_data/ChestXray-NIHCC-2/",type=str)
 parser.add_argument('--seed',help="Random Seed",default = 13,type=int)
 parser.add_argument('--verbose',help="Verbose",default = False,action='store_true')
 parser.add_argument('--testing',help="Calculate AUCs on other Dataset",default = False,action='store_true')
@@ -85,13 +85,18 @@ pickle.dump(Params,open(ExpDir+"/params.pk","wb"))
 if opt.verbose:
     print("Loading dataset....")
 #Create all the dataset (training and the testing)
-dataloader,train_size,test_size,OtherSet,OtherName = CreateDataset(datadir,ExpDir,opt.inputsize,opt.N,batch_size,ModelDir,TestRatio=0.2,rseed=opt.seed,Testing=opt.testing,Restrict=opt.Restrict,MaxSize=10000)
+TrainDataset = LoadTrainTestSet(datadir,inputsize,rseed=13,N=Params["N"])
 
 #Keep same random seed for image testing
 torch.manual_seed(opt.seed)
 ConstantZ = torch.randn(25,LS,1,1)
+ConstantX = torch.tensor([])
+for i in range(10):
+    ConstantX = torch.cat((ConstantX, TrainDataset[i][0]*2.0-1.0), 0)
+ConstantX = ConstantX.reshape(10,1,inputsize,inputsize)
 if torch.cuda.is_available():
     ConstantZ = ConstantZ.cuda()
+    ConstantX = ConstantX.cuda()
 #GenModel
 if opt.verbose:
     print("Loading Models....")
@@ -140,7 +145,7 @@ for epoch in range(Epoch):
     InitLoadTime = time.time()
     InitTime = time.time()
     
-    for dataiter,_ in dataloader:
+    for dataiter,_ in DataLoader(TrainDataset, shuffle=True, batch_size=batch_size,drop_last=True):
         
         itime = time.time()
         LoadingTime = (itime - InitLoadTime)
@@ -216,6 +221,7 @@ for epoch in range(Epoch):
         DiscriminatorLoss[TotIt] = loss_d.cpu().detach().numpy()+0
         InitLoadTime = time.time()
         RunTime = InitLoadTime - itime
+        train_size = len(TrainDataset)
         print("Epoch:%3d c:%6d/%6d = %6.2f Loss:%.4f LoadT=%.4f Rest=%.4f" % (epoch,cpt,train_size,cpt/float(train_size)*100,DiscriminatorLoss[TotIt],LoadingTime,RunTime))
         
         tosave = "%010d" % (TotIt)
@@ -224,18 +230,7 @@ for epoch in range(Epoch):
             csv = 0
             print("Saving Model")
             # do checkpointing
-            torch.save(GenX.state_dict(),
-                       '{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-            torch.save(GenZ.state_dict(),
-                       '{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-            torch.save(DisX.state_dict(),
-                       '{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-            torch.save(DisZ.state_dict(),
-                       '{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-            torch.save(DisXZ.state_dict(),
-                       '{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-            pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
-            pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
+            SaveModel(GenX,GenZ,DisX,DisZ,DisXZ,DiscriminatorLoss,AllAUCs,ExpDir,opt.name, TotIt)
         if cck > opt.ToPrint:
             cck = 0
             
@@ -253,95 +248,7 @@ for epoch in range(Epoch):
             
             print("Generating Fake")
             #Print Fake
-            with torch.no_grad():
-                FakeData = GenX(ConstantZ)
-                PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
-
-                if torch.cuda.is_available():
-                    FakeData = FakeData.cpu()
-                    PredFalse = PredFalse.cpu()
-                
-                FakeData = FakeData.detach().numpy()
-                PredFalse= PredFalse.detach().numpy()
-            
-            fig = plt.figure(figsize=(8,8))
-            c = 0
-            for i in range(20):
-                c +=1
-                #print(fd.shape)
-                plt.subplot(5,5,c)
-                plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
-                plt.title("Fake Disc=%.2f" % (PredFalse[i]))
-                plt.axis("off")
-            for i in range(5):
-                c +=1
-                xi = Xnorm[i]
-                pi = PredReal[i]
-                if torch.cuda.is_available():
-                    xi = xi.cpu()
-                    pi = pi.cpu()
-                xi = xi.detach().numpy()
-                pi = pi.detach().numpy()
-                plt.subplot(5,5,c)
-                plt.imshow(xi[0],cmap="gray",vmin=-1,vmax=1)
-                plt.title("Real Disc=%.2f" % (pi))
-                plt.axis("off")
-            fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
-            plt.close() 
-            
-            
-            #Calculate AUCs
-            if opt.testing == True:
-                print("Scoring other DSet")
-                AllEvalData = dict()
-                for (dl,n) in zip(OtherSet,OtherName):
-                    AllEvalData[n] = dict()
-                    #Store some value
-                    TDiscSc = []
-                    TRecErr = []
-                    TZ = []
-                    TX = []
-                    Tlab = []
-                    for dataiter,lab in dl:
-                        ConstantX = dataiter*2.0-1.0
-                        if torch.cuda.is_available():
-                            ConstantX = ConstantX.cuda()
-                        DiscSc,RecErr,Z = Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,opt.name,tosave,ImageType = n,Sample = 10,SaveFile=False)
-                        TDiscSc += DiscSc
-                        TRecErr += RecErr
-                        TZ += Z
-                        if len(TZ) > test_size:
-                            TZ = TZ[:test_size]
-                            TX = TX[:test_size]
-                            TDiscSc = TDiscSc[:test_size]
-                            TRecErr = TRecErr[:test_size]
-                            break
-                    AllEvalData[n]["Z"] = TZ
-                    AllEvalData[n]["X"] = TX
-                    AllEvalData[n]["RecLoss"] = TRecErr
-                    AllEvalData[n]["Dis"] = TDiscSc
-                            
-                print("Getting AUCs")
-                AllAUCs[TotIt] = dict()
-                for n in OtherName:
-                    if n == "XRayT":
-                        continue
-                    tn = "RecLoss"
-                    d = AllEvalData[n]["RecLoss"]
-                    RealDiscSc = AllEvalData["XRayT"]["RecLoss"]
-                    yd = RealDiscSc + d
-                    pred = [1]*len(RealDiscSc)+[0]*len(d)
-                    fpr, tpr, thresholds = metrics.roc_curve(pred,-np.array(yd), pos_label=1)
-                    auc = metrics.auc(fpr, tpr)
-                    AllAUCs[TotIt][n] = auc
-                    #print(n,auc)
-                subdf = pd.DataFrame(AllAUCs).transpose()
-                fig = plt.figure(figsize=(8,8))
-                for n in list(subdf.columns):
-                    plt.plot(subdf.index,subdf[n],label=n,marker="o")
-                plt.legend()
-                fig.savefig("%s/images/AUCs_LosRec.png" % (ExpDir))
-                plt.close() 
+            GenFake(ConstantZ,GenX,GenZ,DisXZ,DisZ,DisX,ExpDir,opt.name,tosave,ConstantX)
             
             #Set to train
             GenX.train()
@@ -353,63 +260,8 @@ for epoch in range(Epoch):
     
 print("Saving Model")
 # do checkpointing
-torch.save(GenX.state_dict(),
-           '{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-torch.save(GenZ.state_dict(),
-           '{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-torch.save(DisX.state_dict(),
-           '{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-torch.save(DisZ.state_dict(),
-           '{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-torch.save(DisXZ.state_dict(),
-           '{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,opt.name, TotIt))
-pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))
-pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,opt.name, TotIt), "wb" ))    
-            
-               
-                  
-GenX.eval()
-GenZ.eval()
-DisX.eval()
-DisZ.eval()
-DisXZ.eval()
-print("Generating Fake")
-#Print Fake
-with torch.no_grad():
-    FakeData = GenX(ConstantZ)
-    PredFalse = DisXZ(torch.cat((DisZ(ConstantZ), DisX(FakeData)), 1))
-
-    if torch.cuda.is_available():
-        FakeData = FakeData.cpu()
-        PredFalse = PredFalse.cpu()
-    
-    FakeData = FakeData.detach().numpy()
-    PredFalse= PredFalse.detach().numpy()
-
-fig = plt.figure(figsize=(8,8))
-c = 0
-for i in range(20):
-    c +=1
-    #print(fd.shape)
-    plt.subplot(5,5,c)
-    plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
-    plt.title("Fake Disc=%.2f" % (PredFalse[i]))
-    plt.axis("off")
-for i in range(5):
-    c +=1
-    xi = Xnorm[i]
-    pi = PredReal[i]
-    if torch.cuda.is_available():
-        xi = xi.cpu()
-        pi = pi.cpu()
-    xi = xi.detach().numpy()
-    pi = pi.detach().numpy()
-    plt.subplot(5,5,c)
-    plt.imshow(xi[0],cmap="gray",vmin=-1,vmax=1)
-    plt.title("Real Disc=%.2f" % (pi))
-    plt.axis("off")
-fig.savefig("%s/images/GenImg/GenImg_%s_Gen_epoch_%s.png" % (ExpDir,opt.name,tosave))
-plt.close() 
+SaveModel(GenX,GenZ,DisX,DisZ,DisXZ,DiscriminatorLoss,AllAUCs,ExpDir,opt.name, TotIt)
+GenFake(ConstantZ,GenX,GenZ,DisXZ,DisZ,DisX,ExpDir,opt.name,tosave,ConstantX)
                    
                    
         

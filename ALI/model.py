@@ -5,6 +5,21 @@ import glob as glob
 import os
 import pickle
 
+def SaveModel(GenX,GenZ,DisX,DisZ,DisXZ,DiscriminatorLoss,AllAUCs,ExpDir,name, TotIt):
+    torch.save(GenX.state_dict(),
+               '{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,name, TotIt))
+    torch.save(GenZ.state_dict(),
+               '{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,name, TotIt))
+    torch.save(DisX.state_dict(),
+               '{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,name, TotIt))
+    torch.save(DisZ.state_dict(),
+               '{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,name, TotIt))
+    torch.save(DisXZ.state_dict(),
+               '{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,name, TotIt))
+    pickle.dump( DiscriminatorLoss, open( '{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, TotIt), "wb" ))
+    pickle.dump( AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,name, TotIt), "wb" ))
+
+
 def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     #Encoder param
     EncKernel = [5,4,4,4,4,1,1]
@@ -32,7 +47,7 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     DxzDepth = [1024,1024,1]
     
     if size == 64:
-        #Generator param
+        #Encoder param
         EncKernel = [2,7,5,7,4,1]
         EncStride = [1,2,2,2,1,1]
         EncDepth = [64,128,256,512,512,LS]
@@ -57,13 +72,37 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
         DxzStride = [1,1,1]
         DxzDepth = [2048,2048,1]
     
-    
-    #Create Model
+    if size == 128:
+        #Generator param
+        GenKernel = [2,4,3,5,3,6,6,4]
+        GenStride = [1,3,2,1,2,3,1,1]
+        GenDepth =  [256,128,64,64,32,32,32,ColorsNumber]
+        
+        #Encoder param
+        EncKernel = GenKernel[::-1]
+        EncStride = GenStride[::-1]
+        EncDepth = [64,128,128,256,256,512,512,LS]
+        
+        #Discriminator X param
+        DxKernel = EncKernel
+        DxStride = EncStride
+        DxDepth = [64,128,128,256,256,512,512,512]
+        
+        #Discriminator Z param
+        DzKernel = [1,1]
+        DzStride = [1,1]
+        DzDepth = [512,512]
 
+        #Concat Discriminator param
+        DxzKernel = [1,1,1]
+        DxzStride = [1,1,1]
+        DxzDepth = [2048,2048,1]
+        
+    #Create Model
+    
     DisX = DiscriminatorX(KS=DxKernel,ST=DxStride,DP=DxDepth)
     DisZ = DiscriminatorZ(KS=DzKernel,ST=DzStride,DP=DzDepth,LS=LS)
     DisXZ = DiscriminatorXZ(KS=DxzKernel,ST=DxzStride,DP=DxzDepth)
-
     GenZ = Encoder(KS=EncKernel,ST=EncStride,DP=EncDepth,LS=LS)
     GenX = Generator(latent_size=LS,KS=GenKernel,ST=GenStride,DP=GenDepth)
     
@@ -81,13 +120,17 @@ def GenModel(size,LS,CP,ExpDir,name,ColorsNumber=1):
     AllAUCs = dict()
     #Check if checkpoint exist
     if os.path.isfile('{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,name, CP)):
-        #print("Checkpoint %d exist, will load param and start training from there" % (CP))
+        print("Checkpoint %d exist, will load param and start training from there" % (CP))
+        print('{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,name, CP))
         DisX.load_state_dict(torch.load('{0}/models/{1}_DisX_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
-        DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        
         DisXZ.load_state_dict(torch.load('{0}/models/{1}_DisXZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         
         GenZ.load_state_dict(torch.load('{0}/models/{1}_GenZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
         GenX.load_state_dict(torch.load('{0}/models/{1}_GenX_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        
+        DisZ.load_state_dict(torch.load('{0}/models/{1}_DisZ_It_{2}.pth'.format(ExpDir,name, CP),map_location={'cuda:0': 'cpu'}))
+        
         if os.path.isfile('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP)):
             Diss = pickle.load(open('{0}/models/{1}_Loss_It_{2}.pth'.format(ExpDir,name, CP),"rb"))
         

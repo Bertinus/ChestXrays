@@ -12,7 +12,7 @@ print("Lib loaded")
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
-parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
+parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "/media/vince/MILA/Chest_data/ChestXray-NIHCC-2/",type=str)
 parser.add_argument('--N', type=int, default=-1, help='Number of images to load (-1 for all), default=-1')
 
 opt = parser.parse_args()

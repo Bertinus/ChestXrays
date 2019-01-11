@@ -4,7 +4,6 @@ import pickle
 from AliMisc import *
 from model import *
 from AliLoader import *
-from ALI_Out import *
 from sklearn import metrics
 from sklearn import manifold
 
@@ -14,7 +13,7 @@ print("Done loading lib")
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
 parser.add_argument('--wrkdir',type = str, default = "NA",help="Output directory of the experiment")
-parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "./ChestXray-NIHCC-2/",type=str)
+parser.add_argument('--xraydir',help="Directory Chest X-Ray images",default = "/media/vince/MILA/Chest_data/ChestXray-NIHCC-2/",type=str)
 parser.add_argument('--epoch',type=int,help="Epoch to run (-2 run last,-1 run all)",default = -1)
 parser.add_argument('--LS', type=int, default=128, help='Latent Size')
 parser.add_argument('--inputsize',help="Size of image",default = 32,type=int)
@@ -160,6 +159,7 @@ for cp in sorted(SavedModelsIT)[::-1]:
 markers = ["","","",""]
 col = ["red","blue","green","yellow","orange","pink"]
 linestyles = ['-', '--', '-.', ':']
+linestyles = ['-']*4
 for i,tn in enumerate(sorted(AllAUCs.keys())):
     subdf = pd.DataFrame(AllAUCs[tn]).transpose()
     print(subdf.max(axis=0))

@@ -11,100 +11,166 @@ import torchvision.datasets as dset
 
 import torch
 
+#Function that only load pre format training set (list From Kaggle)
+def LoadTrainTestSet(datadir,isize,rseed=13,subset="Training",N=-1):
+    #PreProcess folder
+    PreProDir = datadir+"PreProcess/Size"+str(isize)
+    ImagesInfoDF = pd.read_csv(PreProDir+"/AllImagesInfo.csv")
+    
+    #Get Training set
+    TrainingSet = pd.read_table(datadir+"/train_val_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
+    if subset != "Training":
+        TrainingSet = pd.read_table(datadir+"/test_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
+    
+    #Find overlap between list and preformatted
+    TrainSet = np.intersect1d(TrainingSet["name"],ImagesInfoDF["name"])
+    if N > 0:
+        TrainSet = TrainSet[:N]
+    #Load and dataloader
+    train_dataset = XrayDatasetTensor(
+        PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainSet))
+    #Return dataloader
+    return(train_dataset)
+
+def LoadMNIST(datadir,isize):
+    #Load MNIST
+    MNIST_transform = transforms.Compose([transforms.Resize(isize),transforms.ToTensor()])
+    MNIST_set = dset.MNIST(root=datadir, train=True, transform=MNIST_transform, download=True)
+    
+    return(MNIST_set)
 
 
-def CreateDataset(datadir,ExpDir,isize,N,batch_size,ModelDir,TestRatio=0.2,rseed=13,MaxSize = 1000,Testing = False,Restrict="NA"):
-  
-  #PreProcess folder
-  PreProDir = datadir+"PreProcess/Size"+str(isize)
-  ImagesInfoDF = pd.read_csv(PreProDir+"/AllImagesInfo.csv")
+#Load Img list and transform to tensor
+class ImgFileLoader(Dataset):
 
-  #Shuffle the dataset
-  np.random.seed(rseed)
-  ImagesInfoDF = ImagesInfoDF.sample(frac=1.0,random_state=rseed)
+    def __init__(self, FilesList,isize,label=["NA"],shuffle=False,ExtraTransf = None):
 
-  #Keep number of example
-  if N > 0:
-      ImagesInfoDF = ImagesInfoDF.head(N)
-      
-  #Split train and test
-  TestSize = int(len(ImagesInfoDF)*TestRatio+0.5)
-  if TestSize > MaxSize:
-      TestSize = MaxSize
-  
-  
-  
-  TestDF = ImagesInfoDF.tail(TestSize)
-  TrainDF = ImagesInfoDF.head(len(ImagesInfoDF)-TestSize)
-  if not os.path.isfile(ExpDir+"/TrainImagesInfo.csv"):
-      
-      TrainDF.to_csv(ExpDir+"/TrainImagesInfo.csv")
-      TestDF.to_csv(ExpDir+"/TestImagesInfo.csv")
-  TrainDF = pd.read_csv(ExpDir+"/TrainImagesInfo.csv")
-  TestDF = pd.read_csv(ExpDir+"/TestImagesInfo.csv")
-  if Restrict != "NA":
-      print("Restricting training on " + Restrict)
-      print(len(TrainDF))
-      TrainDF = TrainDF[TrainDF[Restrict] == 1]
-      print(len(TrainDF))
-  
-  
-  train_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainDF["name"]))
-  test_dataset = XrayDatasetTensor(PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TestDF["name"]))
-  print("Train Size = %d Test Size = %d" % (len(TrainDF),len(TestDF)))
-  
-  dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size,drop_last=True)
-  ConstantImg = DataLoader(test_dataset, shuffle=False, batch_size=batch_size)
-  
-  if Testing == False:
-      return(dataloader,len(TrainDF),len(TestDF),[],[])
-  
-  
-  testing_bs = 100
-  #MNIST
-  MNIST_transform = transforms.Compose([transforms.Resize(isize),transforms.ToTensor()])
-  MNIST_set = dset.MNIST(root=ModelDir, train=True, transform=MNIST_transform, download=True)
-  MNIST_loader = DataLoader(dataset=MNIST_set,batch_size=testing_bs,shuffle=False)
-  
-  data_transforms = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.Resize([isize,isize]),
-      transforms.ToTensor(),
-  ])
-  
-  #Other Xray
-  OtherXRayDir = "./OtherXray/MURA-v1.1/valid/"
-  if os.path.exists("/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"):
-      OtherXRayDir = "/data/lisa/data/MURA-v1.1/MURA-v1.1/train/"
-  OtherXRay = OtherXrayDataset(OtherXRayDir, isize=isize,nrows=TestSize)
-  print(len(OtherXRay))
-  otherxray = DataLoader(OtherXRay, shuffle=False, batch_size=testing_bs)
-  
-  
+        self.ImgFiles = FilesList
+        
+        ImgTensor = torch.tensor([])
+        #Transform each images to tensor
+        for PathToFile in self.ImgFiles:
+            im = misc.imread(PathToFile)
+            if len(im.shape) > 2:
+                im = im[:, :, 0]
+            #Add color chanel
+            im = im[:,:,None]
+            
+            #Make image square! (pad with black pixel)
+            padding = 0
+            if im.shape[0] > im.shape[1]:
+                padding = (int((im.shape[0]-im.shape[1])/2),0)
+            else:
+                padding = (0,int((im.shape[1]-im.shape[0])/2))
+            #Build transformatin
+            TransfArr = [transforms.ToPILImage(),transforms.Pad(padding,fill=0)]
+            
+            if ExtraTransf:
+                for t in ExtraTransf:
+                    TransfArr.append(t)
+            
+            #Resize and transform to Tensor
+            TransfArr.append(transforms.Resize([isize,isize]))
+            TransfArr.append(transforms.ToTensor())
+            data_transforms = transforms.Compose(TransfArr)
+            # Tranform    
+            im = data_transforms(im)
+            im = im.reshape(1,1,im.shape[2],im.shape[2])
+            
+            
+            if shuffle == True:
+                # With view
+                idx = torch.randperm(im.nelement())
+                im = im.view(-1)[idx].view(im.size())
+            
+            ImgTensor = torch.cat((ImgTensor, im), 0)    
+            
+        self.ImgTensor = ImgTensor
+        if label[0] == "NA":
+            label = ["NA"]*len(FilesList)
+        self.types = label
+        
+        
 
-  
-  data_transforms = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.Resize(isize),
-      transforms.RandomVerticalFlip(p=1.0),
-      transforms.ToTensor(),
-  ])
-  #Add Flip
-  hflip =  DataLoader(XrayDataset(datadir,TestDF, transform=data_transforms), shuffle=False, batch_size=testing_bs)
-  
-  data_transforms = transforms.Compose([
-      transforms.ToPILImage(),
-      transforms.Resize(isize),
-      transforms.RandomHorizontalFlip(p=1.0),
-      transforms.ToTensor(),
-  ])
-  #Add Flip
-  vflip =  DataLoader(XrayDataset(datadir,TestDF, transform=data_transforms), shuffle=False, batch_size=testing_bs)
-  randray = DataLoader(XrayDataset(datadir,TestDF, transform=data_transforms,shuffle=True), shuffle=False, batch_size=testing_bs)
-  
-  
-  
-  return(dataloader,len(TrainDF),len(TestDF),[ConstantImg,MNIST_loader,otherxray,hflip,vflip,randray],["XRayT","MNIST","OXray","HFlip","VFlip","Shuffle"])
+    def __len__(self):
+        return len(self.ImgFiles)
+
+    def __getitem__(self, idx):
+        PathToFile = self.ImgFiles[idx]
+        types = self.types[idx]
+        im = self.ImgTensor[idx]
+        
+        
+        return im,[PathToFile,types]
+
+
+def LoadMURA(datadir,isize,N=-1,rseed = -1):
+    
+    FilesList =sorted(glob.glob(datadir+"/*/*/*/*.png"))
+    if rseed >= 0:
+        np.random.seed(rseed)
+        FilesList = np.random.permutation(FilesList)
+    
+    #File to keep
+    if N > 0:
+        FilesList = FilesList[:N]
+        
+    label = []
+    #Get Label
+    for f in FilesList:
+        pos = f.split("/")[-2].split("_")[-1]
+        reg = f.split("/")[-4].split("_")[-1]
+        label.append("_".join([pos,reg]))
+    
+    MURAset = ImgFileLoader(FilesList,isize,label=label)
+    return(MURAset)
+
+def LoadPneunomia(datadir,isize,N=-1,rseed = -1):
+    
+    FilesList =sorted(glob.glob(datadir+"/*.*"))
+    if rseed >= 0:
+        np.random.seed(rseed)
+        FilesList = np.random.permutation(FilesList)
+    
+    #File to keep
+    if N > 0:
+        FilesList = FilesList[:N]
+        
+    label = []
+    #Get Label
+    for f in FilesList:
+        
+        label.append(f.split("/")[-2])
+    Pneuno = ImgFileLoader(FilesList,isize,label=label)
+    return(Pneuno)
+
+
+#Load modified chest x-ray (flip, permuted and random)
+def LoadModChest(datadir,isize,N=-1,rseed=13,subset="Testing"):
+    #Get Training set
+    TrainingSet = pd.read_table(datadir+"/train_val_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
+    if subset != "Training":
+        TrainingSet = pd.read_table(datadir+"/test_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
+    GlobList = glob.glob(datadir+"/*/*.png")
+    FilesList = []
+    for f in GlobList:
+        if f.split("/")[-1] in list(TrainingSet["name"].values):
+            FilesList.append(f)
+    Hflip = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),ExtraTransf=[transforms.RandomHorizontalFlip(p=1.0)])
+    Vflip = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),ExtraTransf=[transforms.RandomVerticalFlip(p=1.0)])
+    
+    Shuffle = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),shuffle=True)
+    
+    
+    RandomTransf = transforms.RandomChoice([
+        transforms.RandomAffine(degrees=[-90,-15],translate=(0.1,0.1),scale=(1,1.2)),
+        transforms.RandomAffine(degrees=[15,90],translate=(0.1,0.1),scale=(1,1.2))
+    ])
+    
+    Random = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),
+                           ExtraTransf=[RandomTransf])
+    
+    return(Hflip,Vflip,Shuffle,Random)
 
 def ParseXrayCSV(datadir,FileExist=False,N=-1):
     lines = [l.rstrip() for l in open(datadir+"Data_Entry_2017.csv")]
@@ -133,62 +199,8 @@ def ParseXrayCSV(datadir,FileExist=False,N=-1):
 
 
 
-class OtherXrayDataset(Dataset):
 
-    def __init__(self, datadir, isize=None, nrows=-1):
 
-        self.datadir = datadir
-        self.ImgFiles = glob.glob(datadir+"/*/*/*/*.png")
-        if nrows > 0:
-            self.ImgFiles = self.ImgFiles[:nrows]
-        types = []
-        ImgTensor = torch.tensor([])
-        for PathToFile in self.ImgFiles:
-            sp = PathToFile.split("/")
-            pos = sp[-2].split("_")[-1][0].upper()
-            xType = sp[-4].split("_")[-1]
-            types.append("_".join([xType,pos]))
-            
-            
-            im = misc.imread(PathToFile)
-            if len(im.shape) > 2:
-                im = im[:, :, 0]
-            #Add color chanel
-            im = im[:,:,None]
-            # Tranform
-            padding = 0
-            if im.shape[0] > im.shape[1]:
-                padding = (int((im.shape[0]-im.shape[1])/2),0)
-            else:
-                padding = (0,int((im.shape[1]-im.shape[0])/2))
-                
-            data_transforms = transforms.Compose([
-                transforms.ToPILImage(),
-                transforms.Pad(padding,fill=0),
-                transforms.Resize([isize,isize]),
-                transforms.ToTensor(),
-            ])
-                
-            im = data_transforms(im)
-            im = im.reshape(1,1,im.shape[2],im.shape[2])
-            ImgTensor = torch.cat((ImgTensor, im), 0)    
-            
-        self.ImgTensor = ImgTensor    
-        self.types = types
-        
-        #Apply transformation now
-        
-
-    def __len__(self):
-        return len(self.ImgFiles)
-
-    def __getitem__(self, idx):
-        PathToFile = self.ImgFiles[idx]
-        types = self.types[idx]
-        im = self.ImgTensor[idx]
-        
-        
-        return im,[PathToFile,types]
 
 class XrayDataset(Dataset):
 
