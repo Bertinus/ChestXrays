@@ -95,8 +95,6 @@ def load_dictionary(saved_model_path, map_location=None):
     else:
         checkpoint = torch.load(saved_model_path)
 
-    checkpoint = torch.load(saved_model_path, map_location='cpu')
-
     keys = checkpoint['state_dict'].copy().keys()
     for key in keys:
         if "norm.1" in key:
