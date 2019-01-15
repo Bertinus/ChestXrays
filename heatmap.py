@@ -78,7 +78,7 @@ if __name__ == "__main__":
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_1/model_178800.pth"
+    saved_model_path = "/data/milatmp1/bertinpa/Logs/model_1/model.pth.tar"
 
     ####################################################################################################################
     # Initialization
