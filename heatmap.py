@@ -86,19 +86,19 @@ if __name__ == "__main__":
 
     # Model
     if torch.cuda.is_available():
-        densenet = myDenseNet().cuda()
-        densenet = addDropout(densenet, p=0)
-        densenet.load_state_dict(torch.load(saved_model_path))
+        # densenet = myDenseNet().cuda()
+        # densenet = addDropout(densenet, p=0)
+        # densenet.load_state_dict(torch.load(saved_model_path))
         # If pretrained model from git repo
-        # densenet = DenseNet121(14)
-        # densenet.load_state_dict(load_dictionary(saved_model_path))
+        densenet = DenseNet121(14)
+        densenet.load_state_dict(load_dictionary(saved_model_path))
     else:
-        densenet = myDenseNet()
-        densenet = addDropout(densenet, p=0)
-        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        # densenet = myDenseNet()
+        # densenet = addDropout(densenet, p=0)
+        # densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
         # If pretrained model from git repo
-        # densenet = DenseNet121(14)
-        # densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
+        densenet = DenseNet121(14)
+        densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
 
     densenet.eval()
 
