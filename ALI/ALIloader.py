@@ -43,12 +43,13 @@ def LoadMNIST(datadir,isize):
 #Load Img list and transform to tensor
 class ImgFileLoader(Dataset):
 
-    def __init__(self, FilesList,isize,label=["NA"],shuffle=False,ExtraTransf = None):
+    def __init__(self, FilesList,isize,label=["NA"],shuffle=False,ExtraTransf = None,Mean=False):
 
         self.ImgFiles = FilesList
         
         ImgTensor = torch.tensor([])
         #Transform each images to tensor
+        c = 0
         for PathToFile in self.ImgFiles:
             im = misc.imread(PathToFile)
             if len(im.shape) > 2:
@@ -82,7 +83,9 @@ class ImgFileLoader(Dataset):
                 # With view
                 idx = torch.randperm(im.nelement())
                 im = im.view(-1)[idx].view(im.size())
-            
+            if Mean == True:
+                im = im - im + (float(c)/float(len(self.ImgFiles)))
+                c += 1
             ImgTensor = torch.cat((ImgTensor, im), 0)    
             
         self.ImgTensor = ImgTensor
@@ -160,7 +163,7 @@ def LoadModChest(datadir,isize,N=-1,rseed=13,subset="Testing"):
     Vflip = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),ExtraTransf=[transforms.RandomVerticalFlip(p=1.0)])
     
     Shuffle = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),shuffle=True)
-    
+    Mean = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),Mean=True)
     
     RandomTransf = transforms.RandomChoice([
         transforms.RandomAffine(degrees=[-90,-15],translate=(0.1,0.1),scale=(1,1.2)),
@@ -170,7 +173,7 @@ def LoadModChest(datadir,isize,N=-1,rseed=13,subset="Testing"):
     Random = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),
                            ExtraTransf=[RandomTransf])
     
-    return(Hflip,Vflip,Shuffle,Random)
+    return(Hflip,Vflip,Shuffle,Random,Mean)
 
 def ParseXrayCSV(datadir,FileExist=False,N=-1):
     lines = [l.rstrip() for l in open(datadir+"Data_Entry_2017.csv")]

@@ -35,17 +35,17 @@ def GenFake(ConstantZ,GenX,GenZ,DisXZ,DisZ,DisX,ExpDir,name,tosave,Xnorm):
         FakeData = FakeData.detach().numpy()
         PredFalse= PredFalse.detach().numpy()
 
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(9,9))
     c = 0
-    for i in range(20):
+    for i in range(30):
         c +=1
         #print(fd.shape)
-        plt.subplot(5,5,c)
+        plt.subplot(6,6,c)
         plt.imshow(FakeData[i][0],cmap="gray",vmin=-1,vmax=1)
         #plt.imshow(FakeData[i][0],cmap="gray")
         plt.title("fDis=%.2f" % (PredFalse[i]))
         plt.axis("off")
-    for i in range(5):
+    for i in range(6):
         c +=1
         xi = Xnorm[i]
         pi = PredTrue[i]
@@ -54,7 +54,7 @@ def GenFake(ConstantZ,GenX,GenZ,DisXZ,DisZ,DisX,ExpDir,name,tosave,Xnorm):
             pi = pi.cpu()
         xi = xi.detach().numpy()
         pi = pi.detach().numpy()
-        plt.subplot(5,5,c)
+        plt.subplot(6,6,c)
         plt.imshow(xi[0],cmap="gray",vmin=-1,vmax=1)
         plt.title("rDis=%.2f" % (pi))
         plt.axis("off")
@@ -145,6 +145,8 @@ def CreateFolder(wrkdir,name):
         os.makedirs(ExpDir+"/models")
         os.makedirs(ExpDir+"/images")
         os.makedirs(ExpDir+"/images/GenImg/")
+    if not os.path.exists(ExpDir+"/images/RecLoss"):
+        os.makedirs(ExpDir+"/images/RecLoss")
 
     #This is my working dir    
     print("Wrkdir = %s" % (ExpDir))
@@ -155,7 +157,7 @@ def CreateFolder(wrkdir,name):
 def PrintTSNE(df,ToPrint = [],SaveFile="NA",MaxPlot = -1,size=20):
 
     fig = plt.figure(figsize=(15.5,8))
-    SNScol = sns.color_palette()
+    SNScol = sns.color_palette( n_colors=len(DsetName))
     if len(ToPrint) == 0:
         ToPrint = list(df["Lab"].value_counts().index)
     for i,name in enumerate(ToPrint):
@@ -182,7 +184,7 @@ def PrintTSNE(df,ToPrint = [],SaveFile="NA",MaxPlot = -1,size=20):
     
 def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
 
-    fig = plt.figure(figsize=(15.5,12))
+    fig = plt.figure(figsize=(15.5,len(ToPrint))
     c = 1
 
     AlphaRed = GetAlphaRedMap()
@@ -207,7 +209,7 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
             #Plot Init
             plt.subplot(len(DsetName),len(RankPrint)*3,c)
 
-            plt.imshow(img[NowInd][0],cmap="gray")
+            plt.imshow(img[NowInd][0],cmap="gray",vmin=-1,vmax=1)
             #plt.imshow(Diff[NowInd][0],cmap="gray")
             #plt.axis("off")
             plt.yticks([])
@@ -238,8 +240,8 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
     plt.close('all')
     
     
-def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
-    fig = plt.figure(figsize=(15.5,12))
+def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA",metric="RecLoss"):
+    fig = plt.figure(figsize=(15.5,14))
     c = 1
 
     AlphaRed = GetAlphaRedMap()
@@ -252,8 +254,8 @@ def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
         if len(ToPrint) != 0:
             if name not in ToPrint:
                 continue
-        RL = AllEvalData[name]["RecLoss"]
-        Diff = AllEvalData[name]["DiffX"] 
+        RL = AllEvalData[name][metric]
+        #Diff = AllEvalData[name]["DiffX"] 
         img = AllEvalData[name]["X"]
         SortInd = np.argsort(RL)[::-1]
         RankPrint = [0,1,2,3,4,int(len(RL)/4),int(len(RL)/2),int(len(RL)/4*3),len(RL)-5,len(RL)-4,len(RL)-3,len(RL)-2,len(RL)-1]
@@ -261,9 +263,8 @@ def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
             NowInd = SortInd[rp]
             plt.subplot(len(DsetName),len(RankPrint),c)
             plt.title("%.2f" % (RL[NowInd]))
-            plt.imshow(img[NowInd][0],cmap="gray")
+            plt.imshow(img[NowInd][0],cmap="gray",vmin=-1,vmax=1)
             #plt.imshow(Diff[NowInd][0],cmap=AlphaRed,vmin=0, vmax=3)
-            #plt.imshow(Diff[NowInd][0],cmap="gray")
             #plt.axis("off")
             plt.yticks([])
             plt.xticks([])
@@ -275,24 +276,24 @@ def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
         fig.savefig(SaveFile)
     else:
         plt.show()
-    plt.close('all')
+#    plt.close('all')
     
     
-def PrintDense(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
+def PrintDense(AllEvalData,DsetName,ToPrint = [],SaveFile="NA",metric="RecLoss"):
     fig = plt.figure(figsize=(15.5,8))
-    SNScol = sns.color_palette()
+    SNScol = sns.color_palette( n_colors=len(DsetName))
     
     for i,name in enumerate(DsetName):
         if name not in AllEvalData:
             continue
-        if "RecLoss" not in AllEvalData[name]:
+        if metric not in AllEvalData[name]:
             continue
         if len(ToPrint) != 0:
             if name not in ToPrint:
                 continue
         #Get Reconstruction loss
-        TestRL = AllEvalData[name]["RecLoss"]
-        RealRL = AllEvalData["ChestXray"]["RecLoss"]
+        TestRL = AllEvalData[name][metric]
+        RealRL = AllEvalData["ChestXray"][metric]
 
         #Concat
         CatRl = RealRL + TestRL
@@ -311,7 +312,7 @@ def PrintDense(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
     #plt.legend(fontsize = 30,frameon=False,prop={"family":"Sans Serif"})
     plt.legend(fontsize = 15,frameon=False)
 
-    plt.xlabel("Reconstruction Loss",size=20)
+    plt.xlabel(metric,size=20)
     plt.ylabel("Density",size=20)
     plt.xticks(size=20)
     
@@ -365,3 +366,33 @@ def GetTSNE(AllEvalData,ToPrint = []):
     df = pd.DataFrame([Y[:,0],Y[:,1],lab,rl,imglab]).transpose()
     df.columns = ["T-SNE1","T-SNE2","Lab","RL","ImgLab"]
     return(df)
+    
+    
+def EvalImage(GenX,GenZ,DisXZ,DisX,DisZ,ConstantX):
+    
+    #Generate Latent from Real
+    RealZ = GenZ(ConstantX)
+    RebuildX = GenX(RealZ)
+
+    DiffX = ConstantX - RebuildX
+
+    #Have discriminator do is thing on real and fake data
+    PredReal  = DisXZ(torch.cat((DisZ(RealZ), DisX(ConstantX)), 1))
+    if torch.cuda.is_available():
+        DiffX = DiffX.cpu()
+        RebuildX = RebuildX.cpu()
+        PredReal = PredReal.cpu()
+        RealZ = RealZ.cpu()
+
+    PredReal = PredReal.detach().numpy()
+    DiffX = DiffX.detach().numpy()
+    DiffX = np.power(DiffX,2)
+    RebuildX = RebuildX.detach().numpy()
+    RealZ = RealZ.detach().numpy()
+    RealZ.resize((RealZ.shape[:2]))
+    
+    DiscSC = list(np.ravel(PredReal))
+    RecLoss = [np.sqrt(np.mean(x)) for x in DiffX]
+    
+    return(DiscSC,RecLoss,list(RealZ),RebuildX,DiffX)
+        

@@ -1,20 +1,11 @@
-from model import *
-from AliLoader import *
-#from ALI_Out import *
+from ALImodel import *
+from ALIloader import *
+from ALImisc import *
 
-import sys
-import pickle
-from torch.utils.data import DataLoader
-import torchvision.datasets as dset
 from torch.autograd import Variable
 import torch.optim as optim
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from sklearn import manifold
-from sklearn import metrics
-from scipy import stats
-from AliMisc import *
+
 import argparse
 import time
 
@@ -62,8 +53,8 @@ ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
 
 datadir = opt.xraydir
 #ChestXray Image Dir
-if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
+if os.path.exists("/network/data1/ChestXray-NIHCC-2/"):
+    datadir = "/network/data1/ChestXray-NIHCC-2/"
 
 #Print Argument
 Params = vars(opt)
@@ -89,7 +80,7 @@ TrainDataset = LoadTrainTestSet(datadir,inputsize,rseed=13,N=Params["N"])
 
 #Keep same random seed for image testing
 torch.manual_seed(opt.seed)
-ConstantZ = torch.randn(25,LS,1,1)
+ConstantZ = torch.randn(40,LS,1,1)
 ConstantX = torch.tensor([])
 for i in range(10):
     ConstantX = torch.cat((ConstantX, TrainDataset[i][0]*2.0-1.0), 0)
@@ -150,9 +141,7 @@ for epoch in range(Epoch):
         itime = time.time()
         LoadingTime = (itime - InitLoadTime)
     
-        #If only evaluating don't train!
-        if opt.eval == True:
-            break
+        
         #Get Data
         Xnorm = dataiter *2.0 - 1.0
         #Get Batch Size
@@ -226,12 +215,12 @@ for epoch in range(Epoch):
         
         tosave = "%010d" % (TotIt)
         
-        if csv > opt.make_check:
+        if csv >= opt.make_check:
             csv = 0
             print("Saving Model")
             # do checkpointing
             SaveModel(GenX,GenZ,DisX,DisZ,DisXZ,DiscriminatorLoss,AllAUCs,ExpDir,opt.name, TotIt)
-        if cck > opt.ToPrint:
+        if cck >= opt.ToPrint:
             cck = 0
             
             #Print some image
