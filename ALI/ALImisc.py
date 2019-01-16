@@ -184,7 +184,7 @@ def PrintTSNE(df,ToPrint = [],SaveFile="NA",MaxPlot = -1,size=20):
     
 def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
 
-    fig = plt.figure(figsize=(15.5,len(ToPrint))
+    fig = plt.figure(figsize=(15.5,len(ToPrint)))
     c = 1
 
     AlphaRed = GetAlphaRedMap()
