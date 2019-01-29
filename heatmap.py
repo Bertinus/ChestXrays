@@ -1,6 +1,6 @@
 from dataset import MyDataLoader, Iterator
 import torch
-from model import myDenseNet, addDropout, averageCrossEntropy, DenseNet121, load_dictionary
+from model import averageCrossEntropy, DenseNet121, load_dictionary
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import imresize

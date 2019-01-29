@@ -1,7 +1,7 @@
 from dataset import MyDataLoader
 import torch
 import os
-from model import myDenseNet, addDropout, DenseNet121, load_dictionary
+from model import myDenseNet, addDropout
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import ShuffleSplit
@@ -23,11 +23,10 @@ if __name__ == "__main__":
                               "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
                               "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
 
-    """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "Models/model.pth.tar"
+    saved_model_path = "Models/model_178800.pth"
     saveplotdir = "/home/user1/PycharmProjects/ChestXrays/Plots/model_test"
 
     """
@@ -36,10 +35,10 @@ if __name__ == "__main__":
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
     saved_model_path = "Models/model.pth.tar"  # "Models/model_178800.pth"
     saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_test"
-
+    """
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
-    n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
+    n_batch = 10  # Number of batches used to compute the AUC, -1 for all validation set
     n_splits = 10  # Number of randomized splits to compute standard deviations
     split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
@@ -60,13 +59,19 @@ if __name__ == "__main__":
 
     # Model
     if torch.cuda.is_available():
-        densenet = DenseNet121(14).cuda()
-        # densenet = addDropout(densenet, p=0)
+        densenet = myDenseNet().cuda()
+        densenet = addDropout(densenet, p=0)
         densenet.load_state_dict(torch.load(saved_model_path))
-    else:
-        densenet = DenseNet121(14)
+        # densenet = DenseNet121(14).cuda()
         # densenet = addDropout(densenet, p=0)
-        densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
+        # densenet.load_state_dict(torch.load(saved_model_path))
+    else:
+        densenet = myDenseNet()
+        densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        # densenet = DenseNet121(14)
+        # densenet = addDropout(densenet, p=0)
+        # densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
 
     cpt = 0
     densenet.eval()
@@ -76,6 +81,8 @@ if __name__ == "__main__":
         if torch.cuda.is_available():
             data = data.cuda()
             label = label.cuda()
+
+        # print(np.max(data[0].detach().numpy()))
 
         output = densenet(data)[-1]
 
@@ -127,7 +134,9 @@ if __name__ == "__main__":
             plt.ylabel("True Positive Rate")
             plt.title(pathologies[i] + " ROC")
             plt.subplot(122)
-            plt.hist(all_outputs[:, i], range=(0, 1), bins=50)
+            plt.hist(all_outputs[np.where(all_labels[:, i] == 1), i], range=(0, 1), bins=50, label="pos")
+            plt.hist(all_outputs[np.where(all_labels[:, i] == 0), i], range=(0, 1), bins=50, label="neg")
+            plt.legend()
             plt.title(pathologies[i] + " Prediction histo")
             plt.savefig(os.path.join(saveplotdir, str(pathologies[i] + '.png')))
             plt.clf()

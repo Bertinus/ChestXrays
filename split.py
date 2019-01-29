@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # %% Build Train Test Val Datasets
     ####################################################################################################################
-    """
+
     # Local
     testListPath = "/home/user1/Documents/Data/ChestXray/Utils/test_list.txt"
     csvpath = "/home/user1/Documents/Data/ChestXray/Data_Entry_2017.csv"
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     testListPath = "/u/bertinpa/Documents/ChestXrays/Data/test_list.txt"
     csvpath = "/data/lisa/data/ChestXray-NIHCC-2/Data_Entry_2017.csv"
     savepath = "/u/bertinpa/Documents/ChestXrays/Data"
-
+    """
     # Load data
     Data = pd.read_csv(csvpath)
     testList = pd.read_csv(testListPath, header=None)[0].tolist()
