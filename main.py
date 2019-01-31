@@ -132,8 +132,8 @@ if __name__ == "__main__":
 
     # Optimizer
     optimizer = Adam(densenet.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-5)
-    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=5, mode='min')
-    # StepLR(optimizer, step_size=sched_step_size, gamma=sched_gamma)  # Used to decay learning rate
+    # scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=5, mode='min')
+    scheduler = StepLR(optimizer, step_size=sched_step_size, gamma=sched_gamma)  # Used to decay learning rate
 
     ####################################################################################################################
     # Training
