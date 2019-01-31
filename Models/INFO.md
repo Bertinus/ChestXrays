@@ -10,3 +10,10 @@
 - model 31800 : No dropout, horizontal flip only, learning rate decay (x0.1 every 10 epochs) batch size 32
 - model 90600 : 0.01 dropout, horizontal flip only, learning rate decay (x0.5 every 10 epochs)
 - model 37200 : No dropout, horizontal flip only, learning rate decay (x0.1 every 10 epochs) batch size 16, input size 448, max_pooling layer
+
+
+
+# New trainings
+
+- Training 3 : nothing
+- training 2 : only horizontal flip
