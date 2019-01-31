@@ -73,13 +73,13 @@ if __name__ == "__main__":
     """
 
     # Server Dataloader
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
-    train_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
-    val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
+    datadir = "/network/data1/ChestXray-NIHCC-2/images"
+    train_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
+    val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
-    logdir = "/data/milatmp1/bertinpa/Logs/training_3"
+    savemodeldir = "/network/tmp1/bertinpa/Logs/model_3"
+    logdir = "/network/tmp1/bertinpa/Logs/training_3"
 
 
     # Network
