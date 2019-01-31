@@ -111,7 +111,7 @@ if __name__ == "__main__":
     print("Initializing...")
 
     # Dataloaders
-    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows, flip=False)
+    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows, flip=True)
     val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, flip=False)
 
     # Model
