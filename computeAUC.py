@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
-    n_batch = 10  # Number of batches used to compute the AUC, -1 for all validation set
+    n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
     n_splits = 10  # Number of randomized splits to compute standard deviations
     split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
@@ -135,8 +135,8 @@ if __name__ == "__main__":
             plt.ylabel("True Positive Rate")
             plt.title(pathologies[i] + " ROC")
             plt.subplot(122)
-            plt.hist(all_outputs[np.where(all_labels[:, i] == 1), i], range=(0, 1), bins=50, label="pos")
-            plt.hist(all_outputs[np.where(all_labels[:, i] == 0), i], range=(0, 1), bins=50, label="neg")
+            plt.hist(all_outputs[np.where(all_labels[:, i] == 1), i][0], range=(0, 1), bins=50, label="pos")
+            plt.hist(all_outputs[np.where(all_labels[:, i] == 0), i][0], range=(0, 1), bins=50, label="neg")
             plt.legend()
             plt.title(pathologies[i] + " Prediction histo")
             plt.savefig(os.path.join(saveplotdir, str(pathologies[i] + '.png')))
