@@ -23,6 +23,7 @@ if __name__ == "__main__":
                               "0.8887", "0.8878", "0.9371", "0.8047", "0.8638", "0.7680",
                               "0.8062", "0.9248", "0.7802", "0.8676", "0.9164"]
 
+    """
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
@@ -31,14 +32,14 @@ if __name__ == "__main__":
 
     """
     # Server
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
-    val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "Models/model.pth.tar"  # "Models/model_178800.pth"
-    saveplotdir = "/u/bertinpa/Documents/ChestXrays/Plots/model_test"
-    """
+    datadir = "/network/data1/ChestXray-NIHCC-2/images"
+    val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
+    saved_model_path = "/network/tmp1/bertinpa/Logs/model_3/model_13000.pth"
+    saveplotdir = "/network/home/bertinpa/Documents/ChestXrays/Plots/server_model_13000"
+
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
-    n_batch = 10  # Number of batches used to compute the AUC, -1 for all validation set
+    n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
     n_splits = 10  # Number of randomized splits to compute standard deviations
     split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
@@ -100,10 +101,10 @@ if __name__ == "__main__":
             break
 
     # Save predictions as a csv
-    all_names = np.array([all_data['Image Index'][idx].values for idx in all_idx])
-    csv_array = pd.DataFrame(np.concatenate((all_names, all_outputs, all_labels), axis=1))
-    column_names = ["name"] + ["prediction_"+str(i) for i in range(14)] + ["label_"+str(i) for i in range(14)]
-    csv_array.to_csv("model_predictions.csv", header=column_names, index=False)
+    # all_names = np.array([all_data['Image Index'][idx].values for idx in all_idx])
+    # csv_array = pd.DataFrame(np.concatenate((all_names, all_outputs, all_labels), axis=1))
+    # column_names = ["name"] + ["prediction_"+str(i) for i in range(14)] + ["label_"+str(i) for i in range(14)]
+    # csv_array.to_csv("model_predictions.csv", header=column_names, index=False)
 
     ####################################################################################################################
     # Compute AUC
