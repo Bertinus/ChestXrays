@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class XrayDataset(Dataset):
@@ -48,6 +49,7 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_la
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomHorizontalFlip(),
+            transforms.RandomAffine(15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
             # transforms.RandomVerticalFlip(),
             transforms.Resize(inputsize),
             transforms.ToTensor(),
@@ -99,6 +101,9 @@ if __name__ == '__main__':
     # Transformations
     data_transforms = transforms.Compose([
         transforms.ToPILImage(),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomAffine(15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        # transforms.RandomVerticalFlip(),
         transforms.Resize(inputsize),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.repeat(3, 1, 1))
@@ -127,4 +132,5 @@ if __name__ == '__main__':
         print("pixel std", data[:, 0].std(), data[:, 1].std(), data[:, 2].std())
 
         for i in range(3):
-            misc.imshow(data[i].numpy())
+            plt.imshow(np.rollaxis(data[i].numpy(), 0, 3))
+            plt.show()

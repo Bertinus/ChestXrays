@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
-    n_batch = -1  # Number of batches used to compute the AUC, -1 for all validation set
+    n_batch = 10  # Number of batches used to compute the AUC, -1 for all validation set
     n_splits = 10  # Number of randomized splits to compute standard deviations
     split = ShuffleSplit(n_splits=n_splits, test_size=0.5, random_state=0)
 
