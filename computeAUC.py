@@ -90,11 +90,11 @@ if __name__ == "__main__":
         if torch.cuda.is_available():
             all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().cpu().numpy()
             all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().cpu().numpy()
-            all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().cpu().numpy()[:, None]
+            # all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().cpu().numpy()[:, None]
         else:
             all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().numpy()
             all_outputs[cpt * batch_size: (cpt + 1) * batch_size] = output.detach().numpy()
-            all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().numpy()[:, None]
+            # all_idx[cpt * batch_size: (cpt + 1) * batch_size] = idx.detach().numpy()[:, None]
 
         cpt += 1
         if cpt == n_batch:
