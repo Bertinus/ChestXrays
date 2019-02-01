@@ -15,5 +15,5 @@
 
 # New trainings
 
-- Training 3 : nothing
+- model 13000 : No dropout, no data augmentation learning_rate = 0.0001 sched_step_size = 10 sched_gamma = 0.1 batch_size = 16
 - training 2 : only horizontal flip
