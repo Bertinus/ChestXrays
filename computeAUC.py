@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Server
     datadir = "/network/data1/ChestXray-NIHCC-2/images"
     val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/network/tmp1/bertinpa/Logs/model_52600.pth"
+    saved_model_path = "/network/tmp1/bertinpa/Logs/model_145600.pth"
     saveplotdir = "/network/home/bertinpa/Documents/ChestXrays/Plots/test"
 
     inputsize = [224, 224]  # Image Size fed to the network
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomHorizontalFlip(),
-            # transforms.RandomAffine(rot[data_aug], translate=translate[data_aug], scale=scale[data_aug]),
+            transforms.RandomAffine(rot[data_aug], translate=translate[data_aug], scale=scale[data_aug]),
             # transforms.RandomVerticalFlip(),
             transforms.Resize(inputsize),
             transforms.ToTensor(),
