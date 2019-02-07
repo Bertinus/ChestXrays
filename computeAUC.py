@@ -61,7 +61,7 @@ if __name__ == "__main__":
             transforms.ToTensor(),
             transforms.Lambda(lambda x: x.repeat(3, 1, 1))
         ])
-        
+
         print("rotation", rot[data_aug], "translation", translate[data_aug], "scale", scale[data_aug])
 
         ####################################################################################################################
