@@ -34,8 +34,8 @@ if __name__ == "__main__":
     # Server
     datadir = "/network/data1/ChestXray-NIHCC-2/images"
     val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/network/tmp1/bertinpa/Logs/model_2/model_52600.pth"
-    saveplotdir = "/network/home/bertinpa/Documents/ChestXrays/Plots/server_model_52600"
+    saved_model_path = "/network/tmp1/bertinpa/Logs/model_13000.pth"
+    saveplotdir = "/network/home/bertinpa/Documents/ChestXrays/Plots/test"
 
     inputsize = [224, 224]  # Image Size fed to the network
     batch_size = 16
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     # Compute predictions
     ####################################################################################################################
 
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=False)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=True)
     all_data = pd.read_csv(val_csvpath)
 
     if n_batch == -1:
