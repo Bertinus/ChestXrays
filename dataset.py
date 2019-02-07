@@ -49,7 +49,7 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_la
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.RandomHorizontalFlip(),
-            # transforms.RandomAffine(45, translate=(0.15, 0.15), scale=(0.85, 1.15)),
+            transforms.RandomAffine(45, translate=(0.15, 0.15), scale=(0.85, 1.15)),
             # transforms.RandomVerticalFlip(),
             transforms.Resize(inputsize),
             transforms.ToTensor(),
