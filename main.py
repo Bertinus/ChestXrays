@@ -78,8 +78,8 @@ if __name__ == "__main__":
     val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/network/tmp1/bertinpa/Logs/model_2"
-    logdir = "/network/tmp1/bertinpa/Logs/training_2"
+    savemodeldir = "/network/tmp1/bertinpa/Logs/model_1"
+    logdir = "/network/tmp1/bertinpa/Logs/training_1"
 
 
     # Network
