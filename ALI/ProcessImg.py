@@ -1,4 +1,4 @@
-from AliLoader import *
+from ALIloader import *
 
 import torch
 from torchvision import transforms
@@ -21,8 +21,8 @@ isize = opt.inputsize
 datadir = opt.xraydir
 
 #ChestXray Image Dir
-if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
+if os.path.exists("/network/data1/ChestXray-NIHCC-2/"):
+    datadir = "/network/data1/ChestXray-NIHCC-2/"
 
 #Create Pre-process folder
 if not os.path.exists(datadir+"PreProcess"):
@@ -85,19 +85,19 @@ for fn in list(ImagesToDo["name"].values):
     #Print some progess
     c += 1
     cpt += 1
-    if cpt > len(ImagesInfoDF)/1000.0:
+    if cpt > len(ImagesInfoDF)/100.0:
         subdf = ImagesInfoDF[ImagesInfoDF["name"].isin(NameDone)]
     
         torch.save(ImgTensor, datadir+"PreProcess/Size"+str(isize)+"/Tensor"+str(isize)+".pt")
         subdf.to_csv(datadir+"PreProcess/Size"+str(isize)+"/AllImagesInfo.csv")
 
         cpt = 0
-        Fract = c/float(len(ImagesToDo))
+        Fract = len(NameDone)/float(len(ImagesToDo))
         NowTime = time.time()
         Diff = NowTime - InitTime
-        Left = Diff / float(c) * float(len(ImagesToDo)-c)
-        SecImg = Diff / float(c)
-        print("%6d / %6d = %.2f SecImg = %.4f Elaspe Time=%6.2f (min) TimeLeft = %6.2f (min)" % (c,len(ImagesToDo),Fract*100.0,SecImg,Diff/60.0,Left/60.0))
+        Left = Diff / float(len(NameDone)) * float(len(ImagesToDo)-len(NameDone))
+        SecImg = Diff / float(len(NameDone))
+        print("%6d / %6d = %.2f SecImg = %.4f Elaspe Time=%6.2f (min) TimeLeft = %6.2f (min)" % (len(NameDone),len(ImagesToDo),Fract*100.0,SecImg,Diff/60.0,Left/60.0))
     #print(ImgTensor.shape,im.shape)
         
 

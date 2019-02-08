@@ -12,23 +12,30 @@ import torchvision.datasets as dset
 import torch
 
 #Function that only load pre format training set (list From Kaggle)
-def LoadTrainTestSet(datadir,isize,rseed=13,subset="Training",N=-1):
+def LoadTrainTestSet(datadir,isize,rseed=13,subset="Training",N=-1,verbose=0,split="new"):
     #PreProcess folder
+    
     PreProDir = datadir+"PreProcess/Size"+str(isize)
     ImagesInfoDF = pd.read_csv(PreProDir+"/AllImagesInfo.csv")
-    
+    if verbose == 1:
+        print("Getting split")
     #Get Training set
     TrainingSet = pd.read_table(datadir+"/train_val_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
     if subset != "Training":
         TrainingSet = pd.read_table(datadir+"/test_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
-    
+    if split != "new":
+        #Get Training set
+        TrainingSet = pd.read_csv(PreProDir+"/TrainImagesInfo.csv").sample( random_state=rseed,frac=1.0)
+        if subset != "Training":
+            TrainingSet = pd.read_csv(PreProDir+"/TestImagesInfo.csv").sample( random_state=rseed,frac=1.0)
     #Find overlap between list and preformatted
     TrainSet = np.intersect1d(TrainingSet["name"],ImagesInfoDF["name"])
     if N > 0:
         TrainSet = TrainSet[:N]
     #Load and dataloader
+    
     train_dataset = XrayDatasetTensor(
-        PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainSet))
+        PreProDir+"/Tensor"+str(isize)+".pt",PreProDir+"/AllImagesInfo.csv",list(TrainSet),verbose=verbose)
     #Return dataloader
     return(train_dataset)
 
@@ -43,7 +50,7 @@ def LoadMNIST(datadir,isize):
 #Load Img list and transform to tensor
 class ImgFileLoader(Dataset):
 
-    def __init__(self, FilesList,isize,label=["NA"],shuffle=False,ExtraTransf = None,Mean=False):
+    def __init__(self, FilesList,isize,label=["NA"],shuffle=False,ExtraTransf = None,Mean=False,verbose=0):
 
         self.ImgFiles = FilesList
         
@@ -85,7 +92,10 @@ class ImgFileLoader(Dataset):
                 im = im.view(-1)[idx].view(im.size())
             if Mean == True:
                 im = im - im + (float(c)/float(len(self.ImgFiles)))
-                c += 1
+            c += 1
+            if verbose == 1:
+                if c % 1000 == 0:
+                    print(c,len(self.ImgFiles))
             ImgTensor = torch.cat((ImgTensor, im), 0)    
             
         self.ImgTensor = ImgTensor
@@ -105,11 +115,24 @@ class ImgFileLoader(Dataset):
         
         
         return im,[PathToFile,types]
-
-
-def LoadMURA(datadir,isize,N=-1,rseed = -1):
+def LoadCIFAR(datadir,isize):
+    #Load MNIST
+    CIFAR_transform = transforms.Compose([transforms.Grayscale(num_output_channels=1),transforms.Resize(isize),transforms.ToTensor()])
+    CIFAR_set = dset.CIFAR100(root=datadir, train=True, transform=CIFAR_transform, download=True)
     
-    FilesList =sorted(glob.glob(datadir+"/*/*/*/*.png"))
+    return(CIFAR_set)
+
+def LoadMURA(datadir,isize,N=-1,rseed = -1,verbose=0):
+    
+    #Build file list
+    if not os.path.isfile(datadir+"FilesList.csv"):
+        tFilesList =sorted(glob.glob(datadir+"/*/*/*/*/*.png"))
+        pd.DataFrame(tFilesList).to_csv(datadir+"FilesList.csv")
+        
+    #Load File list
+    FilesList = pd.read_csv(datadir+"FilesList.csv")['0'].values
+    if verbose == 1:
+        print("MURA File List = %d" % (len(FilesList)))
     if rseed >= 0:
         np.random.seed(rseed)
         FilesList = np.random.permutation(FilesList)
@@ -125,12 +148,19 @@ def LoadMURA(datadir,isize,N=-1,rseed = -1):
         reg = f.split("/")[-4].split("_")[-1]
         label.append("_".join([pos,reg]))
     
-    MURAset = ImgFileLoader(FilesList,isize,label=label)
+    MURAset = ImgFileLoader(FilesList,isize,label=label,verbose=verbose)
     return(MURAset)
+
 
 def LoadPneunomia(datadir,isize,N=-1,rseed = -1):
     
-    FilesList =sorted(glob.glob(datadir+"/*.*"))
+    
+    #Build file list
+    if not os.path.isfile(datadir+"FilesList.csv"):
+        tFilesList =sorted(glob.glob(datadir+"/*/*/*.*"))
+        pd.DataFrame(tFilesList).to_csv(datadir+"FilesList.csv")
+    
+    FilesList = pd.read_csv(datadir+"FilesList.csv")['0'].values
     if rseed >= 0:
         np.random.seed(rseed)
         FilesList = np.random.permutation(FilesList)
@@ -149,27 +179,49 @@ def LoadPneunomia(datadir,isize,N=-1,rseed = -1):
 
 
 #Load modified chest x-ray (flip, permuted and random)
-def LoadModChest(datadir,isize,N=-1,rseed=13,subset="Testing"):
+def LoadModChest(datadir,isize,N=-1,rseed=13,subset="Testing",split = "new",check_file = False):
     #Get Training set
     TrainingSet = pd.read_table(datadir+"/train_val_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
     if subset != "Training":
         TrainingSet = pd.read_table(datadir+"/test_list.txt",names=["name"]).sample( random_state=rseed,frac=1.0)
-    GlobList = glob.glob(datadir+"/*/*.png")
+        
+    if split != "new":
+        #Get Training set
+        TrainingSet = pd.read_csv(datadir+"/TrainImagesInfo.csv").sample( random_state=rseed,frac=1.0)
+        if subset != "Training":
+            TrainingSet = pd.read_csv(datadir+"/TestImagesInfo.csv").sample( random_state=rseed,frac=1.0)
     FilesList = []
-    for f in GlobList:
-        if f.split("/")[-1] in list(TrainingSet["name"].values):
-            FilesList.append(f)
+    if check_file == True:
+        print("Globing")
+        GlobList = glob.glob(datadir+"/images/*.png")
+        for f in GlobList:
+            if f.split("/")[-1] in list(TrainingSet["name"].values):
+                FilesList.append(f)
+        print(len(GlobList),len(FilesList))
+    else:
+        for fs in list(TrainingSet["name"].values):
+             f = datadir+"/images/" + fs 
+             FilesList.append(f)
+            
+    if N > 0:
+        FilesList = np.random.permutation(FilesList)
+        FilesList = FilesList[:N]
+    
+    print("Loading Hflip")
     Hflip = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),ExtraTransf=[transforms.RandomHorizontalFlip(p=1.0)])
+    print("Loading Vflip")
     Vflip = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),ExtraTransf=[transforms.RandomVerticalFlip(p=1.0)])
     
+    print("Loading Shuffle")
     Shuffle = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),shuffle=True)
+    print("Loading mean")
     Mean = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),Mean=True)
     
     RandomTransf = transforms.RandomChoice([
         transforms.RandomAffine(degrees=[-90,-15],translate=(0.1,0.1),scale=(1,1.2)),
         transforms.RandomAffine(degrees=[15,90],translate=(0.1,0.1),scale=(1,1.2))
     ])
-    
+    print("Loading Random transformation")
     Random = ImgFileLoader(FilesList,isize,label=["NA"]*len(FilesList),
                            ExtraTransf=[RandomTransf])
     
@@ -252,10 +304,11 @@ class XrayDataset(Dataset):
 
 class XrayDatasetTensor(Dataset):
 
-    def __init__(self, TensorName,FullDF,Names):
-
+    def __init__(self, TensorName,FullDF,Names,verbose=0):
+        if verbose == 1:print("Loading Tensor")
+            
         self.ImgTensor = torch.load(TensorName)
-        
+        if verbose == 1:print("Tensor loaded")
         df = pd.read_csv(FullDF)
         df.index = list(df["name"])
         tdict =  df[df.columns[4:]].transpose().to_dict()
@@ -281,14 +334,3 @@ class XrayDatasetTensor(Dataset):
         
         
         return im,[PathToFile,self.label[self.Names[idx]]]
-
-
-
-
-
-
-
-    
-    
-
-

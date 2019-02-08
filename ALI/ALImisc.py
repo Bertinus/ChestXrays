@@ -127,8 +127,8 @@ def Reconstruct(GenZ,GenX,DisX,DisZ,DisXZ,ConstantX,ExpDir,Name,tosave,SaveFile=
 def CreateFolder(wrkdir,name):
     #Default Directory with all model
     ModelDir = "./model/"
-    if os.path.exists("/data/milatmp1/frappivi/ALI_model"):
-        ModelDir = "/data/milatmp1/frappivi/ALI_model/"
+    if os.path.exists("/network/tmp1/frappivi/ALI_model"):
+        ModelDir = "/network/tmp1/frappivi/ALI_model/"
 
     #If provided model dir, will used it
     if wrkdir != "NA":
@@ -184,12 +184,13 @@ def PrintTSNE(df,ToPrint = [],SaveFile="NA",MaxPlot = -1,size=20):
     
 def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
 
-    fig = plt.figure(figsize=(15.5,len(ToPrint)))
+    fig = plt.figure(figsize=(15.5,8))
     c = 1
 
     AlphaRed = GetAlphaRedMap()
-
-    for i,name in enumerate(DsetName):
+    if len(ToPrint) == 0:
+        ToPrint = DsetName
+    for i,name in enumerate(ToPrint):
         if name not in AllEvalData:
             continue
         if "RecLoss" not in AllEvalData[name]:
@@ -207,7 +208,7 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
             NowInd = SortInd[rp]
 
             #Plot Init
-            plt.subplot(len(DsetName),len(RankPrint)*3,c)
+            plt.subplot(len(ToPrint),len(RankPrint)*3,c)
 
             plt.imshow(img[NowInd][0],cmap="gray",vmin=-1,vmax=1)
             #plt.imshow(Diff[NowInd][0],cmap="gray")
@@ -219,7 +220,7 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
             c += 1
 
             #Plt diff
-            plt.subplot(len(DsetName),len(RankPrint)*3,c)
+            plt.subplot(len(ToPrint),len(RankPrint)*3,c)
             plt.title("%.2f" % (RL[NowInd]))
             plt.imshow(Diff[NowInd][0],cmap="Reds",vmin=0, vmax=3)
             plt.yticks([])
@@ -227,7 +228,7 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
             c += 1
 
             #Plt Rebuild
-            plt.subplot(len(DsetName),len(RankPrint)*3,c)
+            plt.subplot(len(ToPrint),len(RankPrint)*3,c)
             plt.imshow(RB[NowInd][0],cmap="gray",vmin=-1, vmax=1)
             plt.yticks([])
             plt.xticks([])
@@ -241,12 +242,15 @@ def ImageReconPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA"):
     
     
 def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA",metric="RecLoss"):
-    fig = plt.figure(figsize=(15.5,14))
+    fig = plt.figure(figsize=(15.5,8))
     c = 1
 
     AlphaRed = GetAlphaRedMap()
-
-    for i,name in enumerate(DsetName):
+    
+    if len(ToPrint) == 0:
+        ToPrint = DsetName
+    
+    for i,name in enumerate(ToPrint):
         if name not in AllEvalData:
             continue
         if "RecLoss" not in AllEvalData[name]:
@@ -261,7 +265,7 @@ def ImageSortPrint(AllEvalData,DsetName,ToPrint = [],SaveFile="NA",metric="RecLo
         RankPrint = [0,1,2,3,4,int(len(RL)/4),int(len(RL)/2),int(len(RL)/4*3),len(RL)-5,len(RL)-4,len(RL)-3,len(RL)-2,len(RL)-1]
         for rp in RankPrint:
             NowInd = SortInd[rp]
-            plt.subplot(len(DsetName),len(RankPrint),c)
+            plt.subplot(len(ToPrint),len(RankPrint),c)
             plt.title("%.2f" % (RL[NowInd]))
             plt.imshow(img[NowInd][0],cmap="gray",vmin=-1,vmax=1)
             #plt.imshow(Diff[NowInd][0],cmap=AlphaRed,vmin=0, vmax=3)

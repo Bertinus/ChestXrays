@@ -6,6 +6,7 @@ from ALImodel import *
 from ALIloader import *
 from sklearn import metrics
 from sklearn import manifold
+from skimage.measure import compare_ssim as ssim
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', type=str, default="default", help='Experiment name')
@@ -21,12 +22,12 @@ opt = parser.parse_args()
 ColorsNumber = 1
 #Create all the folders to save stuff
 ExpDir,ModelDir = CreateFolder(opt.wrkdir,opt.name)
-
+ModelName = opt.name
 
 datadir = opt.xraydir
 #ChestXray Image Dir
-if os.path.exists("/data/lisa/data/ChestXray-NIHCC-2/"):
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/"
+if os.path.exists("/network/data1/"):
+    datadir = "/network/data1/"
 
 #Print Argument
 Params = vars(opt)
@@ -42,23 +43,37 @@ LS = Params["LS"] #Latent Space Size
 inputsize = Params["inputsize"]
 
 #Load train and test
-
-TestDataset = LoadTrainTestSet(datadir+"ChestXray-NIHCC-2/",inputsize,rseed=13,subset="Test",N=Params["N"])
-TrainDataset = LoadTrainTestSet(datadir+"ChestXray-NIHCC-2/",inputsize,rseed=13,N=len(TestDataset))
+print("Loading test and train")
+TestDataset = LoadTrainTestSet(datadir+"ChestXray-NIHCC-2/",inputsize,rseed=13,subset="Test",N=Params["N"],verbose=1,split="old")
+#print("TestDataset",len(TestDataset))
+TrainDataset = LoadTrainTestSet(datadir+"ChestXray-NIHCC-2/",inputsize,rseed=13,N=len(TestDataset),verbose=1,split="old")
 #Load MNIST
-MNIST = LoadMNIST(datadir+"MNIST/",inputsize)
+print("Loading MNIST")
+MNIST = LoadMNIST(datadir+"ChestXray-NIHCC-2/other/MNIST/",inputsize)
 
 #Load MURA
-MURA = LoadMURA(datadir+"MURA-v1.1/*/",inputsize,N=len(TestDataset),rseed=13)
+print("Loading MURA")
+MURA = LoadMURA(datadir+"MURA-v1.1/MURA-v1.1/",inputsize,N=len(TestDataset),rseed=13,verbose=1)
+
+print("Loading CIFAR")
+CIFAR = LoadCIFAR(datadir+"ChestXray-NIHCC-2/other/MNIST/",inputsize)
 
 #Load Pneunomia
-Pneuno = LoadPneunomia(datadir+"/chest_xray/*/*",inputsize,N=len(TestDataset),rseed=13)
+print("Loading Pneumo")
+Pneuno = LoadPneunomia(datadir+"ChestXray-NIHCC-2/other/chest_xray/",inputsize,N=len(TestDataset),rseed=13)
 
 #Modified Chest X-ray 
-Hflip,Vflip,Shuffle,Random = LoadModChest(datadir+"ChestXray-NIHCC-2/",64,rseed=13,N=len(TestDataset))
+print("Loading Synth")
+Hflip,Vflip,Shuffle,Random,Mean = LoadModChest(datadir+"ChestXray-NIHCC-2/",64,rseed=13,N=len(TestDataset))
 
-DsetName = ["ChestXray","tChestXray","MNIST","MURA","Pneuno","hFlip","vFlip","Shuffle","Random"]
-Dset = [TestDataset,TrainDataset,MNIST,MURA,Pneuno,Hflip,Vflip,Shuffle,Random]
+DsetName = ["ChestXray","tChestXray","CIFAR","MNIST","MURA","Pneuno","hFlip","vFlip","Shuffle","Random","Mean"]
+Dset = [TestDataset,TrainDataset,CIFAR,MNIST,MURA,Pneuno,Hflip,Vflip,Shuffle,Random,Mean]
+
+#DsetName = ["ChestXray","MNIST","MURA","Pneuno","hFlip","vFlip","Shuffle","Random","Mean"]
+#Dset = [TestDataset,MNIST,MURA,Pneuno,Hflip,Vflip,Shuffle,Random,Mean]
+for (d,n) in zip(Dset,DsetName):
+    print(n,len(d))
+
 
 #Get all Modeled saved
 SavedModelsIT = []
@@ -74,20 +89,16 @@ print("Saved Model",SavedModelsIT)
 
 
 AllAUCs = dict()
-for cp in sorted(SavedModelsIT):
+for cp in sorted(SavedModelsIT)[::-1]:
     #Load current iteration
     
     DisX,DisZ,DisXZ,GenZ,GenX,CP,DiscriminatorLoss,tAUCs = GenModel(
         inputsize,LS,cp,ExpDir,Params["name"],ColorsNumber=ColorsNumber)
-    for cp in tAUCs:
-        if cp in AllAUCs:continue
-        for met in tAUCs[cp]:
-            if cp not in AllAUCs:AllAUCs[cp] = dict()
-            
-            AllAUCs[cp][met] = tAUCs[cp][met]
+    cp = CP
+    
     print("Iterations",cp,CP)
-    if cp in AllAUCs:
-        continue
+    #if cp in AllAUCs:
+    #    continue
     
     
     #Set to eval
@@ -115,7 +126,7 @@ for cp in sorted(SavedModelsIT):
             if torch.cuda.is_available():
                 rXi = rXi.cuda()
             ttlab = []
-            if n == "MNIST":
+            if (n == "MNIST") or (n=="CIFAR"):
                 ttlab = list(path.detach().numpy())
             else:
                 ttlab += list(path[1])
@@ -124,9 +135,9 @@ for cp in sorted(SavedModelsIT):
             
             #Store everything
             if torch.cuda.is_available():
-                Xi = Xi.cpu()
+                rXi = rXi.cpu()
                 
-            TX += list(Xi.detach().numpy())
+            TX += list(rXi.detach().numpy())
             TDiscSc += DiscSc
             TRecErr += RL
             TZ += Z
@@ -152,8 +163,10 @@ for cp in sorted(SavedModelsIT):
         AllEvalData[n]["DiffX"] = TDiff
         AllEvalData[n]["lab"] = tlab
     
-    
+    #Distance in latent sapce
     Zn = AllEvalData["tChestXray"]["Z"]
+    if len(Zn) > 1000:
+        Zn = Zn[:1000]
     for name in DsetName:
         tDist = []
         udist = []
@@ -163,67 +176,61 @@ for cp in sorted(SavedModelsIT):
             udist.append(np.sum(np.power(Zi,2)))
         AllEvalData[name]["tDist"] = tDist
         AllEvalData[name]["Dist"] = udist
+    #Get AUCs
+    cp = int(CP)
+    if cp not in AllAUCs:
+        AllAUCs[cp] = dict()
+    #Get SSIM distance
+    for n in DsetName:
+        ssimd = []
+        x = AllEvalData[n]["X"]
+        xr = AllEvalData[n]["Xr"]
+        for i in range(len(x)):
+            sd = ssim(x[i][0],xr[i][0])
+            ssimd.append(sd)
+            AllEvalData[n]["ssim"] = ssimd
+            
+        #Get average value
+        if "u_RecLoss" not in AllAUCs[cp]:AllAUCs[cp]["u_RecLoss"] = dict()
+        if "u_ssim" not in AllAUCs[cp]:AllAUCs[cp]["u_ssim"] = dict()    
+        AllAUCs[cp]["u_RecLoss"][n] = np.mean(AllEvalData[n]["RecLoss"])
+        AllAUCs[cp]["u_ssim"][n] = np.mean(AllEvalData[n]["ssim"])
+            
+            
+    pickle.dump(AllEvalData, open( '{0}/{1}_AllEval_It_{2}.pth'.format(ExpDir,Params["name"], cp), "wb" ))
+    for t in ["RecLoss","ssim","tDist","Dist","Dis"]:
+        tAUC = GetAUC(AllEvalData,metric=t)
+        tname = "AUC_"+t
+        AllAUCs[cp][tname] = tAUC
+        print(tname)
+        for k in sorted(tAUC.keys()):
+            print("%10s %6.2f %6.2f" % (k,tAUC[k],1-tAUC[k])) 
     
     #Print Reconstruction process
     sf = ExpDir+"/images/RecLoss/Recon_"+"%010d.png" % (cp)
-    ImageReconPrint(AllEvalData,DsetName,SaveFile=sf)
+    print(sf)
+    ImageReconPrint(AllEvalData,DsetName,ToPrint=["ChestXray","MNIST","MURA","Pneuno","CIFAR"],SaveFile=sf)
     
     #Print Distribution of image
-    sf = ExpDir+"/images/RecLoss/ImgDist_"+"%010d.png" % (cp)
-    PrintDense(AllEvalData,DsetName,ToPrint=["ChestXray","MNIST","MURA","Pneuno"],SaveFile=sf)
-    sf = ExpDir+"/images/RecLoss/SynthDist_"+"%010d.png" % (cp)
-    PrintDense(AllEvalData,DsetName,ToPrint=["ChestXray","hFlip","vFlip","Shuffle","Random","tChestXray"],SaveFile=sf)
+    for t in ["RecLoss","ssim","Dist"]:
+        print(name,t,int(cp))
+        sf = ExpDir+"/images/RecLoss/%s_Dense_%s_%010d.png" % (ModelName,t,int(cp))
+        PrintDense(AllEvalData,DsetName,ToPrint=["ChestXray","MNIST","MURA","Pneuno","CIFAR"],SaveFile=sf,metric=t)
+        
+        
+        sf = ExpDir+"/images/RecLoss/%s_Sort_%s_%010d.png" % (ModelName,t,int(cp))
+        ImageSortPrint(AllEvalData,DsetName,ToPrint=["ChestXray","MNIST","MURA","Pneuno","CIFAR"],SaveFile=sf,metric=t)
     
     
     #Print T-SNE
-    df = GetTSNE(AllEvalData,ToPrint = ["ChestXray","MNIST","MURA","Pneuno","Shuffle","vFlip"])
-    sf = ExpDir+"/images/RecLoss/TSNE_"+"%010d.png" % (cp)
-    PrintTSNE(df,ToPrint = ["ChestXray","MNIST","MURA","Pneuno","Shuffle","vFlip"],MaxPlot=300,SaveFile=sf)
+    #df = GetTSNE(AllEvalData,ToPrint = ["ChestXray","MNIST","MURA","Pneuno","Shuffle","vFlip"])
+    #sf = ExpDir+"/images/RecLoss/TSNE_"+"%010d.png" % (cp)
+    #PrintTSNE(df,ToPrint = ["ChestXray","MNIST","MURA","Pneuno","Shuffle","vFlip"],MaxPlot=300,SaveFile=sf)
     
     #Print Sorted error
-    sf = ExpDir+"/images/RecLoss/SortErr_"+"%010d.png" % (cp)
-    ImageSortPrint(AllEvalData,DsetName,SaveFile=sf)
     
-    #Get AUC recloss
-    tAUC = GetAUC(AllEvalData,metric="RecLoss")
-    if cp not in AllAUCs:
-        AllAUCs[cp] = dict()
-    AllAUCs[cp]["AUCrl"] = tAUC
     
-    #Get AUC training dist
-    tAUC = GetAUC(AllEvalData,metric="tDist")
-    if cp not in AllAUCs:
-        AllAUCs[cp] = dict()
-    AllAUCs[cp]["AUCtDist"] = tAUC
-    
-    #Get AUC recloss
-    tAUC = GetAUC(AllEvalData,metric="Dist")
-    if cp not in AllAUCs:
-        AllAUCs[cp] = dict()
-    AllAUCs[cp]["AUCuDist"] = tAUC
-    
-    #Get AUC Discriminator
-    tAUC = GetAUC(AllEvalData,metric="Dis")
-    if cp not in AllAUCs:
-        AllAUCs[cp] = dict()
-    AllAUCs[cp]["AUCdis"] = tAUC
-    
-    #Get Loss for every dataset
-    if "Url" not in AllAUCs[cp]:AllAUCs[cp]["Url"] = dict()
-    if "Udis" not in AllAUCs[cp]:AllAUCs[cp]["Udis"] = dict()
-    if "Drl" not in AllAUCs[cp]:AllAUCs[cp]["Drl"] = dict()
-    if "Ddis" not in AllAUCs[cp]:AllAUCs[cp]["Ddis"] = dict()    
-    for n in AllEvalData:
-        AllAUCs[cp]["Url"][n] = np.mean(AllEvalData[n]["RecLoss"])
-        AllAUCs[cp]["Udis"][n] = np.mean(AllEvalData[n]["Dis"])
-        
-        AllAUCs[cp]["Drl"][n] = np.std(AllEvalData[n]["RecLoss"])
-        AllAUCs[cp]["Ddis"][n] = np.std(AllEvalData[n]["Dis"])
     
     pickle.dump(AllAUCs, open( '{0}/models/{1}_AUCs_It_{2}.pth'.format(ExpDir,Params["name"], cp), "wb" ))
-    
-    
-
-
-        
-        
+    if opt.epoch == -1:
+        break
