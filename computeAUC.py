@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
-            # transforms.RandomHorizontalFlip(),
+            transforms.RandomHorizontalFlip(),
             # transforms.RandomAffine(rot[data_aug], translate=translate[data_aug], scale=scale[data_aug]),
             # transforms.RandomVerticalFlip(),
             transforms.Resize(inputsize),
