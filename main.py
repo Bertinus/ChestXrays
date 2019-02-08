@@ -4,7 +4,7 @@ import os
 from torch.optim import Adam
 from model import myDenseNet, averageCrossEntropy, addDropout
 from tensorboardX import SummaryWriter
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 
 
 def initWriter(savemodeldir, logdir):
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ####################################################################################################################
     # Parameters
     ####################################################################################################################
-
+    """
     # Local Dataloader
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     train_csvpath = "/home/user1/Documents/Data/ChestXray/DataTrain.csv"
@@ -73,14 +73,14 @@ if __name__ == "__main__":
     """
 
     # Server Dataloader
-    datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
-    train_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
-    val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
+    datadir = "/network/data1/ChestXray-NIHCC-2/images"
+    train_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataTrain.csv"
+    val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
 
     # Server Writer
-    savemodeldir = "/data/milatmp1/bertinpa/Logs/model_3"
-    logdir = "/data/milatmp1/bertinpa/Logs/training_3"
-    """
+    savemodeldir = "/network/tmp1/bertinpa/Logs/model_1"
+    logdir = "/network/tmp1/bertinpa/Logs/training_1"
+
 
     # Network
     inputsize = [224, 224]
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     nrows = None  # None for the whole dataset
 
     # Optimizer
-    learning_rate = 0.001
+    learning_rate = 0.0001
 
     # scheduler
     sched_step_size = 10
@@ -111,8 +111,8 @@ if __name__ == "__main__":
     print("Initializing...")
 
     # Dataloaders
-    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows)
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size)
+    train_dataloader = MyDataLoader(datadir, train_csvpath, inputsize, batch_size=batch_size, nrows=nrows, flip=True)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, flip=False)
 
     # Model
     if torch.cuda.is_available():
@@ -128,10 +128,11 @@ if __name__ == "__main__":
     writer = initWriter(savemodeldir, logdir)
 
     # Loss
-    criterion = averageCrossEntropy
+    criterion = torch.nn.BCELoss(size_average=True)  # averageCrossEntropy
 
     # Optimizer
-    optimizer = Adam(densenet.parameters(), lr=learning_rate)
+    optimizer = Adam(densenet.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-5)
+    # scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=5, mode='min')
     scheduler = StepLR(optimizer, step_size=sched_step_size, gamma=sched_gamma)  # Used to decay learning rate
 
     ####################################################################################################################

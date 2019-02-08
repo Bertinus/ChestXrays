@@ -33,9 +33,9 @@ if __name__ == "__main__":
 
     """
     # Server
-    testListPath = "/u/bertinpa/Documents/ChestXrays/Data/test_list.txt"
-    csvpath = "/data/lisa/data/ChestXray-NIHCC-2/Data_Entry_2017.csv"
-    savepath = "/u/bertinpa/Documents/ChestXrays/Data"
+    testListPath = "/network/data1/ChestXray-NIHCC-2/test_list.txt"
+    csvpath = "/network/data1/ChestXray-NIHCC-2/Data_Entry_2017.csv"
+    savepath = "/network/home/bertinpa/Documents/ChestXrays/Data"
 
     # Load data
     Data = pd.read_csv(csvpath)

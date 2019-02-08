@@ -5,7 +5,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import numpy as np
-import glob
+import matplotlib.pyplot as plt
+
 
 class XrayDataset(Dataset):
 
@@ -18,11 +19,7 @@ class XrayDataset(Dataset):
                             "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
         # Load data
-        df = pd.read_csv(csvpath, nrows=nrows)
-        
-        #Filter for image file that exist in data dir
-        ImgFiles = [f.split('/')[-1] for f in glob.glob(datadir+"*.png")]
-        self.Data = df[df["Image Index"].isin(ImgFiles)].reset_index()
+        self.Data = pd.read_csv(csvpath, nrows=nrows)
 
     def __len__(self):
         return len(self.Data)
@@ -43,21 +40,12 @@ class XrayDataset(Dataset):
         if self.transform:
             im = self.transform(im)
 
-        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32), idx
+        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32), self.Data['Image Index'][idx]
 
 
-def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False, flip=True):
+def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False, data_transforms=None, shuffle=True):
     # Transformations
-    if flip:
-        data_transforms = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomHorizontalFlip(),
-            # transforms.RandomVerticalFlip(),
-            transforms.Resize(inputsize),
-            transforms.ToTensor(),
-            transforms.Lambda(lambda x: x.repeat(3, 1, 1))
-        ])
-    else:
+    if transforms is None:
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize(inputsize),
@@ -67,7 +55,7 @@ def MyDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_la
 
     # Initialize dataloader
     dataset = XrayDataset(datadir, csvpath, transform=data_transforms, nrows=nrows)
-    dataloader = DataLoader(dataset, shuffle=True, batch_size=batch_size, drop_last=drop_last)
+    dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size, drop_last=drop_last)
 
     return dataloader
 
@@ -103,6 +91,9 @@ if __name__ == '__main__':
     # Transformations
     data_transforms = transforms.Compose([
         transforms.ToPILImage(),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomAffine(15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        # transforms.RandomVerticalFlip(),
         transforms.Resize(inputsize),
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.repeat(3, 1, 1))
@@ -131,4 +122,5 @@ if __name__ == '__main__':
         print("pixel std", data[:, 0].std(), data[:, 1].std(), data[:, 2].std())
 
         for i in range(3):
-            misc.imshow(data[i].numpy())
+            plt.imshow(np.rollaxis(data[i].numpy(), 0, 3))
+            plt.show()
