@@ -77,7 +77,8 @@ if opt.verbose:
     print("Loading dataset....")
 #Create all the dataset (training and the testing)
 TrainDataset = LoadTrainTestSet(datadir,inputsize,rseed=13,N=Params["N"])
-
+if opt.verbose:
+    print("Dataset Len",len(TrainDataset))
 #Keep same random seed for image testing
 torch.manual_seed(opt.seed)
 ConstantZ = torch.randn(40,LS,1,1)
@@ -107,6 +108,8 @@ criterion = nn.BCELoss()
 
 if opt.verbose:
     print("Starting Training")
+    if torch.cuda.is_available():
+        print("GPU avaible!")
 #Training loop!
 TotIt = 0
 if len(DiscriminatorLoss) > 0:
