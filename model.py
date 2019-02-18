@@ -5,6 +5,9 @@ from torch.nn.modules.linear import Linear
 import torch
 from dataset import MyDataLoader, Iterator
 
+# Permutation used to transform the order of classes in model output
+permutation = [0, 8, 3, 7, 9, 10, 11, 2, 6, 12, 1, 5, 4, 13] #[0, 10, 7, 2, 12, 11, 8, 3, 1, 4, 5, 6, 9, 13]
+
 
 def averageCrossEntropy(output, label):
     """
@@ -82,7 +85,8 @@ class DenseNet121(nn.Module):
 
     def forward(self, x):
         x = self.densenet121(x)
-        return x
+        print("output shape", x.shape)
+        return x[:, permutation]
 
 
 def load_dictionary(saved_model_path, map_location=None):
