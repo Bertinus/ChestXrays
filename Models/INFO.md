@@ -20,4 +20,4 @@
 
 - model 52600  No dropout, horizontal flip RandomAffine(15, translate=(0.1, 0.1), scale=(0.9, 1.1)) learning_rate = 0.0001 sched_step_size = 10 sched_gamma = 0.1 batch_size = 16
 - model 145600 : No dropout, horizontal flip transforms.RandomAffine(180, translate=(0.5, 0.5), scale=(0.7, 1.2)) learning_rate = 0.0001 sched_step_size = 10 sched_gamma = 0.1 batch_size = 16
-model 145600 : No dropout, horizontal flip transforms.RandomAffine(180, translate=(0.5, 0.5), scale=(0.7, 1.2)) learning_rate = 0.0001 sched_step_size = 10 sched_gamma = 0.1 batch_size = 16
+- model 72800 : No dropout, horizontal flip transforms.RandomAffine(45, translate=(0.15, 0.15), scale=(0.85, 1.15)) learning_rate = 0.0001 sched_step_size = 10 sched_gamma = 0.1 batch_size = 16

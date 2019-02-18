@@ -1,6 +1,6 @@
 from dataset import MyDataLoader, Iterator
 import torch
-from model import averageCrossEntropy, DenseNet121, load_dictionary
+from model import averageCrossEntropy, DenseNet121, load_dictionary, myDenseNet, addDropout
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.misc import imresize
@@ -68,42 +68,42 @@ if __name__ == "__main__":
                    "Pneumothorax", "Edema", "Emphysema", "Fibrosis", "Effusion", "Pneumonia",
                    "Pleural_Thickening", "Cardiomegaly", "Nodule", "Mass", "Hernia"]
 
-    """
+
     # Local
     datadir = "/home/user1/Documents/Data/ChestXray/images"
     val_csvpath = "/home/user1/Documents/Data/ChestXray/DataVal.csv"
-    saved_model_path = "Models/model.pth.tar"  # "Models/model_178800.pth"
+    saved_model_path = "Models/model_145600.pth"  # "Models/model.pth.tar"  # "Models/model_178800.pth"
 
     """
     # Server
     datadir = "/data/lisa/data/ChestXray-NIHCC-2/images"
     val_csvpath = "/u/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
     saved_model_path = "/data/milatmp1/bertinpa/Logs/model_1/model.pth.tar"
-
+    """
     ####################################################################################################################
     # Initialization
     ####################################################################################################################
 
     # Model
     if torch.cuda.is_available():
-        # densenet = myDenseNet().cuda()
-        # densenet = addDropout(densenet, p=0)
-        # densenet.load_state_dict(torch.load(saved_model_path))
+        densenet = myDenseNet().cuda()
+        densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(torch.load(saved_model_path))
         # If pretrained model from git repo
-        densenet = DenseNet121(14)
-        densenet.load_state_dict(load_dictionary(saved_model_path))
+        # densenet = DenseNet121(14)
+        # densenet.load_state_dict(load_dictionary(saved_model_path))
     else:
-        # densenet = myDenseNet()
-        # densenet = addDropout(densenet, p=0)
-        # densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+        densenet = myDenseNet()
+        densenet = addDropout(densenet, p=0)
+        densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
         # If pretrained model from git repo
-        densenet = DenseNet121(14)
-        densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
+        # densenet = DenseNet121(14)
+        # densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
 
     densenet.eval()
 
     # Dataloader
-    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True, flip=False)
+    val_dataloader = MyDataLoader(datadir, val_csvpath, inputsize, batch_size=batch_size, drop_last=True)
 
     # Loss
     criterion = averageCrossEntropy
@@ -124,30 +124,30 @@ if __name__ == "__main__":
     # Plot heatmaps based on last layer activations
     ####################################################################################################################
 
-    activation = output[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
-    classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
-    heatmaps = get_heatmap(classif_weight, activation, data)
-
-    plot_heatmaps(data, label, heatmaps, pathologies)
+    # activation = output[-2][0].transpose(0, 2).detach()  # Activation before last FC layer
+    # classif_weight = densenet.classifier[0][0].weight.detach()  # Weight of the last FC layer
+    # heatmaps = get_heatmap(classif_weight, activation, data)
+    #
+    # plot_heatmaps(data, label, heatmaps, pathologies)
 
     ####################################################################################################################
     # Plot heatmaps based on gradient norm
     ####################################################################################################################
 
-    # heatmaps = []
-    #
-    # for i in range(14):
-    #     class_label = torch.zeros((1, 14))
-    #     class_label[0, i] = 1
-    #
-    #     loss = criterion(output, class_label)
-    #     loss.backward(retain_graph=True)
-    #
-    #     heatm = np.absolute(data.grad.detach().numpy()[0, 0])
-    #     heatm = 10 * heatm / np.max(heatm)
-    #
-    #     heatmaps.append(heatm)
-    #
-    #     data.grad.zero_()
-    #
-    # plot_heatmaps(data, label, heatmaps, pathologies)
+    heatmaps = []
+
+    for i in range(14):
+        class_label = torch.zeros((1, 14))
+        class_label[0, i] = 1
+
+        loss = criterion(output[-1], class_label)
+        loss.backward(retain_graph=True)
+
+        heatm = np.absolute(data.grad.detach().numpy()[0, 0])
+        heatm = 10 * heatm / np.max(heatm)
+
+        heatmaps.append(heatm)
+
+        data.grad.zero_()
+
+    plot_heatmaps(data, label, heatmaps, pathologies)

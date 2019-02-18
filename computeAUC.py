@@ -1,7 +1,7 @@
 from dataset import MyDataLoader
 import torch
 import os
-from model import myDenseNet, addDropout
+from model import myDenseNet, addDropout, DenseNet121, load_dictionary
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import ShuffleSplit
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Server
     datadir = "/network/data1/ChestXray-NIHCC-2/images"
     val_csvpath = "/network/home/bertinpa/Documents/ChestXrays/Data/DataVal.csv"
-    saved_model_path = "/network/tmp1/bertinpa/Logs/model_1/model_72800.pth"
+    saved_model_path = "/network/tmp1/bertinpa/Logs/model_1/model.pth.tar"
     saveplotdir = "/network/home/bertinpa/Documents/ChestXrays/Plots/test"
 
     inputsize = [224, 224]  # Image Size fed to the network
@@ -54,8 +54,8 @@ if __name__ == "__main__":
 
         data_transforms = transforms.Compose([
             transforms.ToPILImage(),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomAffine(rot[data_aug], translate=translate[data_aug], scale=scale[data_aug]),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomAffine(rot[data_aug], translate=translate[data_aug], scale=scale[data_aug]),
             # transforms.RandomVerticalFlip(),
             transforms.Resize(inputsize),
             transforms.ToTensor(),
@@ -82,19 +82,19 @@ if __name__ == "__main__":
 
         # Model
         if torch.cuda.is_available():
-            densenet = myDenseNet().cuda()
-            densenet = addDropout(densenet, p=0)
-            densenet.load_state_dict(torch.load(saved_model_path))
-            # densenet = DenseNet121(14).cuda()
+            # densenet = myDenseNet().cuda()
             # densenet = addDropout(densenet, p=0)
             # densenet.load_state_dict(torch.load(saved_model_path))
-        else:
-            densenet = myDenseNet()
+            densenet = DenseNet121(14).cuda()
             densenet = addDropout(densenet, p=0)
-            densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
-            # densenet = DenseNet121(14)
+            densenet.load_state_dict(torch.load(saved_model_path))
+        else:
+            # densenet = myDenseNet()
             # densenet = addDropout(densenet, p=0)
-            # densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
+            # densenet.load_state_dict(torch.load(saved_model_path, map_location='cpu'))
+            densenet = DenseNet121(14)
+            densenet = addDropout(densenet, p=0)
+            densenet.load_state_dict(load_dictionary(saved_model_path, map_location='cpu'))
 
         cpt = 0
         densenet.eval()
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
             # print(np.max(data[0].detach().numpy()))
 
-            output = densenet(data)[-1]
+            output = densenet(data)  # [-1]
 
             if torch.cuda.is_available():
                 all_labels[cpt * batch_size: (cpt + 1) * batch_size] = label.detach().cpu().numpy()
