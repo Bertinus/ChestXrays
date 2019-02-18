@@ -85,7 +85,6 @@ class DenseNet121(nn.Module):
 
     def forward(self, x):
         x = self.densenet121(x)
-        print("output shape", x.shape)
         return x[:, permutation]
 
 
