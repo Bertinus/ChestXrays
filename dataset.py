@@ -8,6 +8,65 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+class PadchestDataset(Dataset):
+
+    def __init__(self, datadir, csvpath, transform=None, nrows=None):
+
+        self.datadir = datadir
+        self.transform = transform
+        # Load data
+        Data = pd.read_csv(csvpath, nrows=nrows, low_memory=False)
+        Data = Data[Data.Projection == "PA"]
+        self.Data = Data.reset_index(drop=True)
+
+        self.pathologies = ["atelectasis", "consolidation", "infiltrates",
+                            "pneumothorax", "edema", "emphysema", "fibrosis", "effusion", "pneumonia",
+                            "pleural thickening", "cardiomegaly", "nodule", "mass", "hernia"]
+
+        for patho in self.pathologies:
+            self.Data[patho] = self.Data.Labels.str.contains(patho).fillna(False)
+
+    def __len__(self):
+        return len(self.Data)
+
+    def __getitem__(self, idx):
+
+        try:
+            im = misc.imread(os.path.join(self.datadir, self.Data['ImageID'][idx]))
+        except OSError:
+            print("Missing image, reading next one instead")
+            im = misc.imread(os.path.join(self.datadir, self.Data['ImageID'][idx+1]))
+
+        im = im.astype(float)
+        im /= np.max(im)
+        im *= 255
+        im = im.astype(np.int32)
+
+        # Tranform
+        if self.transform:
+            im = self.transform(im[:, :, None])
+
+        return im, self.Data[self.pathologies].loc[idx].values.astype(np.float32)
+
+
+def PadChestDataLoader(datadir, csvpath, inputsize, batch_size=16, nrows=None, drop_last=False, data_transforms=None,
+                       shuffle=True):
+    # Transformations
+    if data_transforms is None:
+        data_transforms = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize(inputsize),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.repeat(3, 1, 1))
+        ])
+
+    # Initialize dataloader
+    dataset = PadchestDataset(datadir, csvpath, transform=data_transforms, nrows=nrows)
+    dataloader = DataLoader(dataset, shuffle=shuffle, batch_size=batch_size, drop_last=drop_last)
+
+    return dataloader
+
+
 class XrayDataset(Dataset):
 
     def __init__(self, datadir, csvpath, transform=None, nrows=None):
@@ -26,6 +85,7 @@ class XrayDataset(Dataset):
 
     def __getitem__(self, idx):
         im = misc.imread(os.path.join(self.datadir, self.Data['Image Index'][idx]))
+        # For the ChestXRay dataset, range is [0, 255]
 
         # Check that images are 2D arrays
         if len(im.shape) > 2:
@@ -80,6 +140,22 @@ class Iterator:
 
 
 if __name__ == '__main__':
+
+    ####################################################################################################################
+    # Test PadChest
+    ####################################################################################################################
+
+    datadir = "/home/user1/Documents/Data/PADCHEST/sample"
+    csvpath = "/home/user1/Documents/Data/PADCHEST/chest_x_ray_images_labels_sample.csv"
+    # csvpath = "/home/user1/Documents/Data/PADCHEST/PADCHEST_chest_x_ray_images_labels_160K_01.02.19.csv"
+
+    dataloader = PadChestDataLoader(datadir=datadir, csvpath=csvpath, inputsize=[224, 224], batch_size=8)
+
+    for data in dataloader:
+        for i in range(3):
+            print(data)
+            plt.imshow(np.rollaxis(data[0][i].numpy(), 0, 3))
+            plt.show()
 
     ####################################################################################################################
     # Test
