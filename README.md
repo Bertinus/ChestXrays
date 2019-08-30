@@ -14,6 +14,11 @@ To use the spec file to create an identical environment, run :
 conda create --name myenv --file spec-file.txt
 ````
 
+## Load different models
+
+The different model files are in the folder **Models**. You can refer to the file **Models/INFO.md** for details about how 
+the different models were trained. To load them, use the torch modules defined in **model.py**.
+
 ## Abstract
 
 Deep learning has shown promise to augment radiologists 

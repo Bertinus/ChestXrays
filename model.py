@@ -136,8 +136,6 @@ if __name__ == "__main__":
     for name, param in mydensenet.named_parameters():
         print(name, param.requires_grad)
 
-    quit()
-
     dataloader_iterator = Iterator(MyDataLoader(datadir, train_csvpath, inputsize, batch_size=16))
 
     data, label = dataloader_iterator.next()
@@ -172,8 +170,6 @@ if __name__ == "__main__":
     # print(mydensenet.features.denseblock3.denselayer24.conv2.weight.size())
     # print(mydensenet.features.denseblock2.denselayer12.conv2.weight.size())
     # print(mydensenet.features.denseblock1.denselayer6.conv2.weight.size())
-
-    quit()
 
     ####################################################################################################################
     # Test loss function
