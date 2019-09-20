@@ -263,12 +263,14 @@ GenX = GenX.eval()
 #Get file (for the example)
 datadir = "/network/data1/"
 Paths = glob.glob(datadir+"ChestXray-NIHCC-2/other/chest_xray/*/*/*")
-
+Paths = np.random.permutation(Paths)
 
 AllEval = pickle.load(open( '{0}/{1}_AllEval.pth'.format("/network/home/frappivi/ChestXrays/ALI/results/","Penumo"), "rb" ))
+AllEval = dict()
 for i in range(len(Paths)):
     ptf = Paths[i]
     k = "/".join(ptf.split("/")[-3:]).split(".")[0]
+    #if "PNEU" not in ptf:continue
     if k in AllEval:continue
     AllEval[k] = dict()
     print(i,len(Paths),k)
@@ -287,7 +289,7 @@ for i in range(len(Paths)):
     TensorTsc = torch.cat((TensorTsc,TensorImg),0)
     
     #Find Best
-    Xi,SSIM,L2 = GridSearch(pim,grid=5,Scale=0.1,Degree=15,Trans=0.2,noise=0.15,it=4)
+    Xi,SSIM,L2 = GridSearch(pim,grid=5,Scale=0.8,Degree=15,Trans=0.2,noise=0.15,it=6)
     for nopt,name in zip([L2,SSIM],["L2","SSIM"]):
         
         ind = np.argsort(nopt)[0]

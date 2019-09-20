@@ -33,6 +33,7 @@ parser.add_argument('--testing',help="Calculate AUCs on other Dataset",default =
 parser.add_argument('--ToPrint', type=int, default=2500, help='When to print generated sample')
 parser.add_argument('--RandomLabel', help="Predicted Label are semi random",default = False,action='store_true')
 parser.add_argument('--Restrict',help="Restrict training on this label",default="NA")
+parser.add_argument('--GaussianMix',type = int, default =-1,help="Number of Gaussian mixture for prior")
 
 opt = parser.parse_args()
 
@@ -119,6 +120,22 @@ if Epoch < 0:
     Epoch = CP + (Epoch*-1)+1
 cck = 0 #Counter for image
 csv = 0 #Counter for saving model
+
+GMus = []
+if Params["GaussianMix"] > 0:
+    if os.path.exists(ExpDir+"/GMus.pk"):
+        GMus = pickle.load(open(ExpDir+"/GMus.pk","rb"))
+    else:
+        GMus = torch.randn(Params["GaussianMix"],LS,1,1)
+    pickle.dump(GMus,open(ExpDir+"/GMus.pk","wb"))
+    if torch.cuda.is_available():
+        GMus = GMus.cuda()
+    for iz in range(40):
+        rg = np.random.randint(Params["GaussianMix"])
+        ConstantZ[iz] += GMus[rg]
+    #print(GMus)
+
+
 for epoch in range(Epoch):
     #Set to train
     GenX.train()
@@ -161,6 +178,12 @@ for epoch in range(Epoch):
             Xnorm = Xnorm.cuda()
             FakeZ = FakeZ.cuda()
         
+        #Gaussian Mixture Prior
+        if Params["GaussianMix"] > 0:
+            
+            for iz in range(BS):
+                rg = np.random.randint(Params["GaussianMix"])
+                FakeZ[iz] += GMus[rg]
         
         
         #Generate Fake data from random Latent
